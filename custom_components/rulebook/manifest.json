@@ -1,6 +1,6 @@
 {
   "domain": "rulebook",
-  "name": "Home Assistant Rulebook",
+  "name": "Rulebook",
   "codeowners": ["@allenporter"],
   "config_flow": true,
   "documentation": "https://github.com/allenporter/home-assistant-rulebook",

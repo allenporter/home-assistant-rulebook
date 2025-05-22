@@ -6,19 +6,15 @@ from unittest.mock import patch
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.core import HomeAssistant
-from homeassistant.const import (
-    CONF_DEVICE_ID,
-)
 
 
 from custom_components.rulebook.const import DOMAIN
 
 
-async def test_select_device(
+async def test_config_flow(
     hass: HomeAssistant,
-    zwave_device_id: str,
 ) -> None:
-    """Test selecting a device in the configuration flow."""
+    """Test full config flow."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
@@ -30,16 +26,12 @@ async def test_select_device(
     ) as mock_setup:
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
-            {
-                CONF_DEVICE_ID: zwave_device_id,
-            },
+            {},
         )
         await hass.async_block_till_done()
 
     assert result.get("type") is FlowResultType.CREATE_ENTRY
-    assert result.get("title") == "Device name"
+    assert result.get("title") == "Rulebook"
     assert result.get("data") == {}
-    assert result.get("options") == {
-        CONF_DEVICE_ID: zwave_device_id,
-    }
+    assert result.get("options") == {}
     assert len(mock_setup.mock_calls) == 1
