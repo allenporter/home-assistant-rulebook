@@ -6,6 +6,13 @@ an evaluation using a synthetic home and an actual LLM.
 The evaluation is driven using pytest and the Home Assistant test harness, plus
 the `synthetic_home` custom component.
 
+## Running evaluation
+
+You can run the evaluation with
+```
+$ pytest -m eval
+```
+
 ## Home
 
 The synthetic home is https://github.com/allenporter/home-assistant-datasets/blob/main/datasets/devices-v3/family-farmhouse-us.yaml
