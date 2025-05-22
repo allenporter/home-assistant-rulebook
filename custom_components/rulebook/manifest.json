@@ -1,0 +1,11 @@
+{
+  "domain": "rulebook",
+  "name": "Home Assistant Rulebook",
+  "codeowners": ["@allenporter"],
+  "config_flow": true,
+  "documentation": "https://github.com/allenporter/home-assistant-rulebook",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/allenporter/home-assistant-rulebook/issues",
+  "version": "0.0.1"
+}
