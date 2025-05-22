@@ -1,21 +1,11 @@
 """Tests for the rulebook component."""
 
-import pytest
-
-from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr
-
-from pytest_homeassistant_custom_component.common import (
-    MockConfigEntry,
-    async_mock_service,
-)
-
-from custom_components.rulebook.const import (
-    DOMAIN,
-)
+from homeassistant.config_entries import ConfigEntryState
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 
-@pytest.fixture(autouse=True)
-def mock_setup_integration(config_entry: MockConfigEntry) -> None:
-    """Setup the integration"""
+async def test_init(hass: HomeAssistant, config_entry: MockConfigEntry) -> None:
+    """Test that a config entry is setup."""
+
+    assert config_entry.state is ConfigEntryState.LOADED
