@@ -1,6 +1,7 @@
 # home-assistant-rulebook
 
-A Home Assistant custom component implementing an LLM powered home rulebook
+A Home Assistant custom component implementing an LLM powered home rulebook.
+This is an experimental project under development.
 
 ## Environment Pre-requisites
 
