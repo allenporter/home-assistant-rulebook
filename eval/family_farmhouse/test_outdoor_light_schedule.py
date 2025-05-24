@@ -1,7 +1,7 @@
 """Test for the outdoor light rule."""
 
 import asyncio
-from collections.abc import Callable, Generator
+from collections.abc import Callable, AsyncGenerator
 import datetime
 import zoneinfo
 
@@ -11,7 +11,11 @@ import pytest
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.setup import async_setup_component
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import (
+    async_track_state_change_event,
+    Event,
+    EventStateChangedData,
+)
 from homeassistant.components import sun
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
@@ -30,12 +34,12 @@ async def setup_sun_component(hass: HomeAssistant) -> None:
 @pytest.fixture(name="light_state_change")
 async def light_event_fixture(
     hass: HomeAssistant,
-) -> Generator[asyncio.Event]:
+) -> AsyncGenerator[asyncio.Event]:
     """A fixture for an event that fires when the light state changes."""
     event = asyncio.Event()
 
     @callback
-    async def state_changed(_: datetime.datetime) -> None:
+    async def state_changed(_: Event[EventStateChangedData]) -> None:
         event.set()
 
     unsub = async_track_state_change_event(hass, LIGHT_ENTITY, state_changed)

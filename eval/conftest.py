@@ -24,7 +24,7 @@ pytest_plugins = [
 
 
 @pytest.hookimpl(tryfirst=True)
-def pytest_configure(config: pytest.Config):
+def pytest_configure(config: pytest.Config) -> None:
     """Configure pytest."""
     config.option.dataset = str(DATASET_PATH)
     config.option.models = DEFAULT_MODEL_ID
@@ -40,7 +40,7 @@ def pytest_configure(config: pytest.Config):
 
 
 @pytest.fixture(name="test_path")
-def test_path_fixture(request):
+def test_path_fixture(request: pytest.FixtureRequest) -> pathlib.Path:
     """Fixture to get the dataset name from the currently running test."""
     return pathlib.Path(request.module.__file__).parent
 
