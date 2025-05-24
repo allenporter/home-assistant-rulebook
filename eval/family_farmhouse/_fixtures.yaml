@@ -414,14 +414,15 @@ entities:
       supported_color_modes:
         - onoff
       color_mode: onoff
-  - name: Security Camera
-    id: camera.security_camera
-    area: front_yard
-    device: security_camera
-    attributes:
-      supported_features:
-        - camera.CameraEntityFeature.ON_OFF
-        - camera.CameraEntityFeature.STREAM
+  # TODO: Support camera entity in synthetic-home custom component
+  # - name: Security Camera
+  #   id: camera.security_camera
+  #   area: front_yard
+  #   device: security_camera
+  #   attributes:
+  #     supported_features:
+  #       - camera.CameraEntityFeature.ON_OFF
+  #       - camera.CameraEntityFeature.STREAM
   - name: Security Camera Motion
     id: binary_sensor.security_camera_motion
     area: front_yard

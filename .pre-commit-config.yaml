@@ -8,6 +8,8 @@ repos:
       - id: check-yaml
         args:
           - --allow-multiple-documents
+          # Allow constructors from home_assistant_datasets
+          - --unsafe
       - id: check-added-large-files
   - repo: https://github.com/psf/black
     rev: 24.4.2
