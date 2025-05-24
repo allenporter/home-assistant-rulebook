@@ -11,6 +11,12 @@ $ source .venv/bin/activate
 $ uv pip install -r requirements_dev.txt
 ```
 
+## Running tests
+
+```bash
+$ pytest
+```
+
 ## Evaluation
 
 This is an _eval first_ project. That means that you must first write an eval
@@ -20,7 +26,9 @@ library for plugins for making it easier to run common eval tasks.
 
 You can run the eval with this command:
 
-```
+```bash
+# Install custom components in `/workspaces/custom_components`
+$ export PYTHONPATH="/workspaces/"
 $ pytest eval
 ```
 
