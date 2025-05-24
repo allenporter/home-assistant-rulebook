@@ -1,3 +1,15 @@
 {
-    "title": "Home Assistant Rulebook"
+    "title": "Rulebook",
+    "config": {
+        "step": {
+            "user": {
+                "title": "Synthetic Home",
+                "description": "Please select a Conversation Agent to use with the rulebook.",
+                "data": {
+                    "agent_id": "Conversation Agent",
+                    "config_filename": "Config Filename"
+                }
+            }
+        },
+    }
 }
