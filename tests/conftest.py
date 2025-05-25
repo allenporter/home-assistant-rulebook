@@ -39,6 +39,12 @@ TEST_DEVICE_ID = (TEST_DOMAIN, "some-device-id")
 TEST_DEVICE_NAME = "Some Device Name"
 TEST_AGENT = "conversation.fake_agent"
 TEST_AGENT_NAME = "Llama"
+TEST_RULEBOOK = """\
+Location: 500 Smith Street, Brooklyn, NY, 11111
+People: Mario, Peach and their kids Bowser and Luigi
+Preferred temperature: Fahrenheit
+Preferred distance: miles
+"""
 
 
 @pytest.fixture(autouse=True)

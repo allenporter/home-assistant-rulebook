@@ -13,7 +13,7 @@ from homeassistant.helpers.schema_config_entry_flow import (
     SchemaFlowFormStep,
 )
 
-from .const import DOMAIN, CONF_AGENT_ID
+from .const import DOMAIN, CONF_AGENT_ID, CONF_RULEBOOK
 
 
 CONFIG_FLOW = {
@@ -23,9 +23,12 @@ CONFIG_FLOW = {
                 vol.Required(CONF_AGENT_ID): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="conversation"),
                 ),
+                vol.Required(CONF_RULEBOOK): selector.TextSelector(
+                    selector.TextSelectorConfig(multiline=True)
+                ),
             }
         )
-    )
+    ),
 }
 
 OPTIONS_FLOW = {

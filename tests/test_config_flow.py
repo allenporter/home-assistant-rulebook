@@ -9,9 +9,9 @@ from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.core import HomeAssistant
 
 from custom_components.rulebook import DOMAIN
-from custom_components.rulebook.const import CONF_AGENT_ID
+from custom_components.rulebook.const import CONF_AGENT_ID, CONF_RULEBOOK
 
-from .conftest import FakeAgent, TEST_AGENT, TEST_AGENT_NAME
+from .conftest import FakeAgent, TEST_AGENT, TEST_AGENT_NAME, TEST_RULEBOOK
 
 
 @pytest.mark.parametrize(
@@ -35,12 +35,18 @@ async def test_config_flow(
     ) as mock_setup:
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
-            {CONF_AGENT_ID: TEST_AGENT},
+            {
+                CONF_AGENT_ID: TEST_AGENT,
+                CONF_RULEBOOK: TEST_RULEBOOK,
+            },
         )
         await hass.async_block_till_done()
 
     assert result.get("type") is FlowResultType.CREATE_ENTRY
     assert result.get("title") == f"Rulebook {TEST_AGENT_NAME}"
     assert result.get("data") == {}
-    assert result.get("options") == {CONF_AGENT_ID: TEST_AGENT}
+    assert result.get("options") == {
+        CONF_AGENT_ID: TEST_AGENT,
+        CONF_RULEBOOK: TEST_RULEBOOK,
+    }
     assert len(mock_setup.mock_calls) == 1
