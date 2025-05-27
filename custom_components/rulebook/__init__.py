@@ -8,6 +8,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
+from . import agent_llm, agents
 from .const import DOMAIN
 
 __all__ = [
@@ -22,6 +23,13 @@ PLATFORMS: tuple[Platform] = ()  # type: ignore[assignment]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up a config entry."""
+
+    # Register the base LLM
+    await agent_llm.async_register(hass, entry)
+
+    # Register all agents
+    await agents.async_register(hass, entry)
+
     await hass.config_entries.async_forward_entry_setups(
         entry,
         platforms=PLATFORMS,
