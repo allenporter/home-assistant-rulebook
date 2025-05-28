@@ -31,7 +31,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: RulebookConfigEntry) -> 
 
     # Register all agents
     llm_agent = await agents.async_create(hass, entry)
-    client = genai.Client(api_key=entry.data[CONF_API_KEY])
+    client = genai.Client(api_key=entry.options[CONF_API_KEY])
     entry.runtime_data = RulebookContext(
         agent=llm_agent,
         client=client,

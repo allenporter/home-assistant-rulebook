@@ -93,11 +93,10 @@ async def mock_config_entry(
 ) -> MockConfigEntry:
     """Fixture to create a configuration entry."""
     config_entry = MockConfigEntry(
-        data={
+        options={
             CONF_API_KEY: TEST_API_KEY,
         },
         domain=DOMAIN,
-        options={},
     )
     config_entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(config_entry.entry_id)
