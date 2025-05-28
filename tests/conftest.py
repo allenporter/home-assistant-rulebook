@@ -29,6 +29,7 @@ from pytest_homeassistant_custom_component.common import (
 
 from custom_components.rulebook.const import (
     DOMAIN,
+    CONF_API_KEY,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ People: Mario, Peach and their kids Bowser and Luigi
 Preferred temperature: Fahrenheit
 Preferred distance: miles
 """
+TEST_API_KEY = "test-api-key-1"
 
 
 @pytest.fixture(autouse=True)
@@ -91,7 +93,9 @@ async def mock_config_entry(
 ) -> MockConfigEntry:
     """Fixture to create a configuration entry."""
     config_entry = MockConfigEntry(
-        data={},
+        data={
+            CONF_API_KEY: TEST_API_KEY,
+        },
         domain=DOMAIN,
         options={},
     )
@@ -137,6 +141,12 @@ class FakeAgent(conversation.ConversationEntity):
         return
 
 
+@pytest.fixture(name="mock_entities")
+def mock_entities_fixture() -> dict[Platform, list[Entity]]:
+    """Fixture for entities loaded by the integration."""
+    return {}
+
+
 @pytest.fixture(name="test_platforms")
 def mock_test_platforms(
     mock_entities: dict[Platform, list[Entity]],
@@ -155,11 +165,10 @@ def mock_setup_test_integration(
         hass: HomeAssistant, config_entry: ConfigEntry
     ) -> bool:
         """Set up test config entry."""
-        for platform in test_platforms:
-            await hass.config_entries.async_forward_entry_setup(
-                config_entry,
-                platform,
-            )
+        await hass.config_entries.async_forward_entry_setups(
+            config_entry,
+            test_platforms,
+        )
         return True
 
     async def async_unload_entry_init(

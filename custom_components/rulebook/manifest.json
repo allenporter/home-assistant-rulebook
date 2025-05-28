@@ -8,5 +8,6 @@
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/allenporter/home-assistant-rulebook/issues",
   "version": "0.0.1",
+  "loggers": ["google.adk"],
   "requirements": ["google-adk>=1.0.0"]
 }

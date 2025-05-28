@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.config_entries import ConfigEntry
+from google import genai
+
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
 from . import agent_llm, agents
-from .const import DOMAIN
+from .const import DOMAIN, CONF_API_KEY
+from .types import RulebookConfigEntry, RulebookContext
 
 __all__ = [
     DOMAIN,
@@ -18,17 +20,22 @@ __all__ = [
 _LOGGER = logging.getLogger(__name__)
 
 
-PLATFORMS: tuple[Platform] = ()  # type: ignore[assignment]
+PLATFORMS: tuple[Platform] = (Platform.CONVERSATION,)
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: RulebookConfigEntry) -> bool:
     """Set up a config entry."""
 
     # Register the base LLM
-    await agent_llm.async_register(hass, entry)
+    agent_llm.async_register(hass, entry)
 
     # Register all agents
-    await agents.async_register(hass, entry)
+    llm_agent = await agents.async_create(hass, entry)
+    client = genai.Client(api_key=entry.data[CONF_API_KEY])
+    entry.runtime_data = RulebookContext(
+        agent=llm_agent,
+        client=client,
+    )
 
     await hass.config_entries.async_forward_entry_setups(
         entry,
@@ -37,7 +44,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: RulebookConfigEntry) -> bool:
     """Unload a config entry."""
     return await hass.config_entries.async_unload_platforms(
         entry,

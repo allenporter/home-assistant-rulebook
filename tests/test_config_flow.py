@@ -9,15 +9,19 @@ from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.core import HomeAssistant
 
 from custom_components.rulebook import DOMAIN
-from custom_components.rulebook.const import CONF_AGENT_ID, CONF_RULEBOOK
+from custom_components.rulebook.const import CONF_RULEBOOK, CONF_API_KEY
 
-from .conftest import FakeAgent, TEST_AGENT, TEST_AGENT_NAME, TEST_RULEBOOK
+from .conftest import (
+    TEST_RULEBOOK,
+    TEST_API_KEY,
+)
 
 
 @pytest.mark.parametrize(
     ("mock_entities"),
     [
-        ({"conversation": [FakeAgent(TEST_AGENT)]}),
+        # ({"conversation": [FakeAgent(TEST_AGENT)]}),
+        ({}),
     ],
 )
 async def test_config_flow(
@@ -29,24 +33,28 @@ async def test_config_flow(
     )
     assert result.get("type") is FlowResultType.FORM
     assert result.get("errors") is None
-
-    with patch(
-        f"custom_components.{DOMAIN}.async_setup_entry", return_value=True
-    ) as mock_setup:
+    with (
+        patch("google.genai.models.AsyncModels.list"),
+        patch(
+            f"custom_components.{DOMAIN}.async_setup_entry", return_value=True
+        ) as mock_setup,
+    ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {
-                CONF_AGENT_ID: TEST_AGENT,
+                # CONF_AGENT_ID: TEST_AGENT,
+                CONF_API_KEY: TEST_API_KEY,
                 CONF_RULEBOOK: TEST_RULEBOOK,
             },
         )
         await hass.async_block_till_done()
 
     assert result.get("type") is FlowResultType.CREATE_ENTRY
-    assert result.get("title") == f"Rulebook {TEST_AGENT_NAME}"
+    assert result.get("title") == "Rulebook Agent"
     assert result.get("data") == {}
     assert result.get("options") == {
-        CONF_AGENT_ID: TEST_AGENT,
+        # CONF_AGENT_ID: TEST_AGENT,
+        CONF_API_KEY: TEST_API_KEY,
         CONF_RULEBOOK: TEST_RULEBOOK,
     }
     assert len(mock_setup.mock_calls) == 1
