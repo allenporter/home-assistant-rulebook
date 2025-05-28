@@ -1,4 +1,8 @@
-"""Module for registering a conversation agent as an agent framework LLM."""
+"""Module for registering a conversation agent as an agent framework LLM.
+
+This is a placeholder shim and just proxies Gemini, but needs to be updated to
+use the LLM Task AI API once it is available.
+"""
 
 from dataclasses import dataclass
 from collections.abc import AsyncGenerator, Generator, AsyncIterator
@@ -58,65 +62,30 @@ def agent_context(agent_context: AgentContext) -> Generator[None, None, None]:
 
 
 async def _transform_stream(
-    result: AsyncIterator[types.GenerateContentResponse],
+    responses: AsyncIterator[types.GenerateContentResponse],
 ) -> AsyncGenerator[LlmResponse, None]:
     try:
-        async for response in result:
+        text = ""
+        async for response in responses:
             _LOGGER.debug("Received response chunk: %s", response)
-
-            # According to the API docs, this would mean no candidate is returned, so we can safely throw an error here.
-            if response.prompt_feedback or not response.candidates:
-                reason = (
-                    response.prompt_feedback.block_reason_message
-                    if response.prompt_feedback
-                    else "unknown"
-                )
-                raise HomeAssistantError(
-                    f"The message got blocked due to content violations, reason: {reason}"
-                )
-
-            candidate = response.candidates[0]
-
-            if (
-                candidate.finish_reason is not None
-                and candidate.finish_reason != "STOP"
-            ):
-                # The message ended due to a content error as explained in: https://ai.google.dev/api/generate-content#FinishReason
-                _LOGGER.error(
-                    "Error in Google Generative AI response: %s, see: https://ai.google.dev/api/generate-content#FinishReason",
-                    candidate.finish_reason,
-                )
-                raise HomeAssistantError(
-                    f"{_ERROR_GETTING_RESPONSE} Reason: {candidate.finish_reason}"
-                )
-
-            response_parts = (
-                candidate.content.parts
-                if candidate.content is not None and candidate.content.parts is not None
-                else []
-            )
-
-            parts = []
-            for part in response_parts:
-                if part.text:
-                    parts.append(types.Part(text=part.text))
-                if tool_call := part.function_call:
-                    parts.append(
-                        types.Part(
-                            function_call=types.FunctionCall(
-                                name=tool_call.name if tool_call.name else "",
-                                args=tool_call.args,
-                            ),
-                        )
-                    )
-
+            llm_response = LlmResponse.create(response)
+            if llm_response.content and llm_response.content.parts:
+                text += llm_response.content.parts[0].text
+                llm_response.partial = True
+            _LOGGER.debug("Yielding response chunk: %s", llm_response)
+            yield llm_response
+        if (
+            text
+            and response
+            and response.candidates
+            and response.candidates[0].finish_reason == types.FinishReason.STOP
+        ):
             yield LlmResponse(
-                content=types.Content(
-                    parts=parts,
-                    role="assistant",
+                content=types.ModelContent(
+                    parts=[types.Part.from_text(text="")],
                 ),
-                turn_complete=True,
             )
+
     except (errors.APIError, ValueError) as err:
         _LOGGER.error("Error sending message: %s %s", type(err), err)
         if isinstance(err, errors.APIError):
@@ -125,6 +94,9 @@ async def _transform_stream(
             message = type(err).__name__
         error = f"{_ERROR_GETTING_RESPONSE}: {message}"
         raise HomeAssistantError(error) from err
+    except Exception:
+        _LOGGER.exception("Unexpected error while processing response")
+        raise HomeAssistantError(_ERROR_GETTING_RESPONSE) from None
 
 
 class RulebookLlm(BaseLlm):  # type: ignore[misc]
@@ -138,8 +110,8 @@ class RulebookLlm(BaseLlm):  # type: ignore[misc]
     async def generate_content_async(
         self, llm_request: LlmRequest, stream: bool = False
     ) -> AsyncGenerator[LlmResponse, None]:
-        if stream:
-            raise ValueError("Streaming not yet supported")
+        if not stream:
+            raise ValueError("Only streaming is supposed")
         agent_context = _agent_context.get()
         if agent_context is None:
             raise ValueError(
@@ -148,6 +120,8 @@ class RulebookLlm(BaseLlm):  # type: ignore[misc]
         config_entry = agent_context.config_entry
         client = config_entry.runtime_data.client
 
+        # TODO: We're ignoring the entire conversation history, fix this
+        # to pass agent context.
         content = llm_request.contents[-1]
         text = content.parts[-1].text
 

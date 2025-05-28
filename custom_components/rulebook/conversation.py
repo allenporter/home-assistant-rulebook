@@ -1,17 +1,22 @@
 """Conversation agent for the Rulebook agent."""
 
+from collections.abc import AsyncGenerator
 from typing import Literal
 import logging
 
+from google.adk.agents.run_config import StreamingMode, RunConfig
+from google.adk.events.event import Event
 from google.adk.sessions import InMemorySessionService
 from google.adk.runners import Runner
+
 from google.genai import types
 
 from homeassistant.components import assist_pipeline, conversation
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.const import MATCH_ALL
 from homeassistant.core import HomeAssistant, Context
-from homeassistant.helpers import device_registry as dr, intent
+from homeassistant.helpers import device_registry as dr, intent, llm
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, RULEBOOK
@@ -20,7 +25,9 @@ from .agent_llm import agent_context, AgentContext
 
 
 _LOGGER = logging.getLogger(__name__)
-
+_ERROR_GETTING_RESPONSE = (
+    "Sorry, I had a problem getting a response from the Agent."
+)
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -30,6 +37,41 @@ async def async_setup_entry(
     """Set up conversation entities."""
     agent = RulebookConversationEntity(config_entry)
     async_add_entities([agent])
+
+
+async def _transform_stream(
+    chat_log: conversation.ChatLog,
+    result: AsyncGenerator[Event, None],
+) -> AsyncGenerator[conversation.AssistantContentDeltaDict]:
+    """Transform an OpenAI delta stream into HA format."""
+    start = True
+    async for event in result:
+        _LOGGER.info(
+            "Processing event: Author: %s, Type: %s, Final: %s, Content: %s",
+            event.author,
+            type(event).__name__,
+            event.is_final_response(),
+            event.content,
+        )
+        if not event.content or not (response_parts := event.content.parts):
+            continue
+        chunk: conversation.AssistantContentDeltaDict = {}
+        if start:
+            chunk["role"] = "assistant"
+            start = False
+
+        tool_calls = [
+            llm.ToolInput(
+                tool_name=part.function_call.name,
+                tool_args=part.function_call.args,
+            )
+            for part in response_parts
+            if part.function_call
+        ]
+        if tool_calls:
+            chunk["tool_calls"] = tool_calls
+        chunk["content"] = "".join([part.text for part in response_parts if part.text])
+        yield chunk
 
 
 class RulebookConversationEntity(
@@ -104,7 +146,12 @@ class RulebookConversationEntity(
             )
 
         intent_response = intent.IntentResponse(language=user_input.language)
-        assert type(chat_log.content[-1]) is conversation.AssistantContent
+        if not isinstance(chat_log.content[-1], conversation.AssistantContent):
+            _LOGGER.error(
+                "Last content in chat log is not an AssistantContent: %s. This could be due to the model not returning a valid response",
+                chat_log.content[-1],
+            )
+            raise HomeAssistantError(_ERROR_GETTING_RESPONSE)
         intent_response.async_set_speech(chat_log.content[-1].content or "")
         return conversation.ConversationResult(
             response=intent_response,
@@ -126,7 +173,7 @@ class RulebookConversationEntity(
             session_id=chat_log.conversation_id,
         )
         runner = Runner(
-            agent=self._agent, app_name=RULEBOOK, session_service=self._session_service
+            agent=self._agent, app_name=RULEBOOK, session_service=self._session_service,
         )
 
         last_content = chat_log.content[-1]
@@ -140,35 +187,18 @@ class RulebookConversationEntity(
         )
 
         final_response_text: str = "No response received."
-        async for event in runner.run_async(
-            session_id=chat_log.conversation_id, new_message=content, user_id=user_id
-        ):
-            _LOGGER.info(
-                "Processing event: Author: %s, Type: %s, Final: %s, Content: %s",
-                event.author,
-                type(event).__name__,
-                event.is_final_response(),
-                event.content,
-            )
-
-            # Key Concept: is_final_response() marks the concluding message for the turn.
-            if event.is_final_response():
-                if event.content and event.content.parts:
-                    # Assuming text response in the first part
-                    final_response_text = event.content.parts[0].text
-                elif (
-                    event.actions and event.actions.escalate
-                ):  # Handle potential errors/escalations
-                    final_response_text = f"Agent escalated: {event.error_message or 'No specific message.'}"
-                # Add more checks here if needed (e.g., specific error codes)
-                break  # Stop processing events once the final response is found
-
-        chat_log.async_add_assistant_content_without_tools(
-            conversation.AssistantContent(
-                agent_id=agent_id,
-                content=final_response_text,
-            )
+        run_config = RunConfig(streaming_mode=StreamingMode.SSE)
+        event_stream = runner.run_async(
+            session_id=chat_log.conversation_id,
+            new_message=content,
+            user_id=user_id,
+            run_config=run_config
         )
+
+        async for content in chat_log.async_add_delta_content_stream(
+            self.entity_id, _transform_stream(chat_log, event_stream)
+        ):
+            _LOGGER.debug("Chunk processed")
 
     async def _async_entry_update_listener(
         self, hass: HomeAssistant, entry: ConfigEntry

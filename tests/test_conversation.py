@@ -7,6 +7,7 @@ from google.genai.errors import APIError, ClientError
 from google.genai import types
 import httpx
 import pytest
+import logging
 
 from homeassistant.const import Platform
 from homeassistant.components import conversation
@@ -18,6 +19,8 @@ from homeassistant.helpers import intent
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+
+_LOGGER = logging.getLogger(__name__)
 
 TEST_AGENT_ID = "conversation.mock_title"
 
@@ -53,8 +56,8 @@ def mock_platforms() -> list[Platform]:
     return [Platform.CONVERSATION]
 
 
-@pytest.fixture
-def mock_send_message_stream() -> Generator[AsyncMock]:
+@pytest.fixture(name="mock_send_message_stream")
+def mock_send_message_stream_fixture() -> Generator[AsyncMock]:
     """Mock stream response."""
 
     async def mock_generator(
@@ -122,6 +125,7 @@ async def test_empty_response(
                             parts=[],
                             role="model",
                         ),
+                        finish_reason=types.FinishReason.STOP,
                     )
                 ],
             ),
@@ -137,13 +141,13 @@ async def test_empty_response(
         Context(),
         agent_id=TEST_AGENT_ID,
     )
-    assert result.response.response_type == intent.IntentResponseType.ACTION_DONE, (
+    assert result.response.response_type == intent.IntentResponseType.ERROR, (
         result
     )
-    assert result.response.error_code is None
+    assert result.response.error_code == intent.IntentResponseErrorCode.UNKNOWN
     assert (
         result.response.as_dict()["speech"]["plain"]["speech"]
-        == "No response received."
+        == "Sorry, I had a problem getting a response from the Agent."
     )
 
 
@@ -168,6 +172,7 @@ async def test_response(
                             ],
                             role="model",
                         ),
+                        finish_reason=types.FinishReason.STOP,
                     )
                 ],
             ),
@@ -190,4 +195,80 @@ async def test_response(
     assert (
         result.response.as_dict()["speech"]["plain"]["speech"]
         == "Hello, how can I help you?"
+    )
+
+
+
+@pytest.mark.parametrize("expected_lingering_tasks", [True])
+async def test_multiple_parts(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    mock_send_message_stream: AsyncMock,
+) -> None:
+    """Test empty response."""
+
+    messages = [
+        [
+            types.GenerateContentResponse(
+                candidates=[
+                    types.Candidate(
+                        content=types.Content(
+                            parts=[
+                                types.Part(
+                                    text="The capital of",
+                                ),
+                            ],
+                            role="model",
+                        ),
+                    )
+                ],
+            ),
+            types.GenerateContentResponse(
+                candidates=[
+                    types.Candidate(
+                        content=types.Content(
+                            parts=[
+                                types.Part(
+                                    text=" France is",
+                                )
+                            ],
+                            role="model",
+                        ),
+                    )
+                ],
+            ),
+            types.GenerateContentResponse(
+                candidates=[
+                    types.Candidate(
+                        content=types.Content(
+                            parts=[
+                                types.Part(
+                                    text=" Paris.",
+                                )
+                            ],
+                            role="model",
+                        ),
+                        finish_reason=types.FinishReason.STOP,
+                    )
+                ],
+            ),
+        ],
+    ]
+
+    mock_send_message_stream.return_value = messages
+
+    result = await conversation.async_converse(
+        hass,
+        "What is the capital of France?",
+        None,
+        Context(),
+        agent_id=TEST_AGENT_ID,
+    )
+    assert result.response.response_type == intent.IntentResponseType.ACTION_DONE, (
+        result
+    )
+    assert result.response.error_code is None
+    assert (
+        result.response.as_dict()["speech"]["plain"]["speech"]
+        == "The capital of France is Paris."
     )
