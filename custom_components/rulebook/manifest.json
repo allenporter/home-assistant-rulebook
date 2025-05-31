@@ -8,7 +8,7 @@
   "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/allenporter/home-assistant-rulebook/issues",
-  "version": "0.0.1",
   "loggers": ["google.adk", "google.genai"],
-  "requirements": ["google-adk>=1.0.0"]
+  "requirements": ["google-adk>=1.0.0"],
+  "version": "0.0.1"
 }
