@@ -69,7 +69,11 @@ async def _transform_stream(
         async for response in responses:
             _LOGGER.debug("Received response chunk: %s", response)
             llm_response = LlmResponse.create(response)
-            if llm_response.content and llm_response.content.parts:
+            if (
+                llm_response.content
+                and llm_response.content.parts
+                and llm_response.content.parts[0].text
+            ):
                 text += llm_response.content.parts[0].text
                 llm_response.partial = True
             _LOGGER.debug("Yielding response chunk: %s", llm_response)
@@ -122,10 +126,21 @@ class RulebookLlm(BaseLlm):  # type: ignore[misc]
 
         # TODO: We're ignoring the entire conversation history, fix this
         # to pass agent context.
+        _LOGGER.debug(
+            "Generating content for LLM request: %s with model %s",
+            llm_request,
+            _MODEL_NAME,
+        )
+        # Extra debug to diagnose LLM task issues.
+        _LOGGER.debug("History: %s", llm_request.contents[:-1])
+        _LOGGER.debug("Current: %s", llm_request.contents[-1])
+        chat = client.aio.chats.create(
+            model=_MODEL_NAME,
+            config=llm_request.config,
+            history=llm_request.contents[:-1],  # Exclude the last content as it's the user input
+        )
         content = llm_request.contents[-1]
-        text = content.parts[-1].text
-
-        chat = client.aio.chats.create(model=_MODEL_NAME)
+        text = "".join(part.text for part in content.parts if part.text)
         try:
             chat_response_generator = await chat.send_message_stream(message=text)
         except (errors.APIError, errors.ClientError) as err:

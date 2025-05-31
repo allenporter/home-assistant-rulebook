@@ -16,13 +16,17 @@ from homeassistant.config_entries import ConfigEntry
 
 from custom_components.rulebook.const import RULEBOOK_AGENT_ID
 
+# For now we're using the built in model until LLM Tasks
+# are available.
+# _MODEL_NAME = RULEBOOK_AGENT_ID
+_MODEL_NAME = "gemini-2.5-pro-preview-05-06"
 
 def async_create_agent(hass: HomeAssistant, config_entry: ConfigEntry) -> Agent:
     """Create an agent."""
 
     return Agent(
         name="weather_time_agent",
-        model=RULEBOOK_AGENT_ID,
+        model=_MODEL_NAME,
         description=("Agent to answer questions about the time and weather in a city."),
         instruction=(
             "You are a helpful agent who can answer user questions about the time and weather in a city."

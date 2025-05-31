@@ -16,7 +16,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.const import MATCH_ALL
 from homeassistant.core import HomeAssistant, Context
-from homeassistant.helpers import device_registry as dr, intent, llm
+from homeassistant.helpers import device_registry as dr, intent
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, RULEBOOK
@@ -25,9 +25,8 @@ from .agent_llm import agent_context, AgentContext
 
 
 _LOGGER = logging.getLogger(__name__)
-_ERROR_GETTING_RESPONSE = (
-    "Sorry, I had a problem getting a response from the Agent."
-)
+_ERROR_GETTING_RESPONSE = "Sorry, I had a problem getting a response from the Agent."
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -60,18 +59,19 @@ async def _transform_stream(
             chunk["role"] = "assistant"
             start = False
 
+        # Tool calls were handled by the agent, we don't propagate them. However
+        # for debugging for now we just print that we called the tool.
         tool_calls = [
-            llm.ToolInput(
-                tool_name=part.function_call.name,
-                tool_args=part.function_call.args,
-            )
+            f"I called {part.function_call.name} with {part.function_call.args}\n"
             for part in response_parts
             if part.function_call
         ]
-        if tool_calls:
-            chunk["tool_calls"] = tool_calls
-        chunk["content"] = "".join([part.text for part in response_parts if part.text])
+        content_parts = [part.text for part in response_parts if part.text]
+        chunk["content"] = "".join(content_parts + tool_calls)
         yield chunk
+        if event.is_final_response():
+            _LOGGER.info("Final response received, ending stream.")
+            break
 
 
 class RulebookConversationEntity(
@@ -167,13 +167,31 @@ class RulebookConversationEntity(
     ) -> None:
         """Generate an answer for the chat log."""
         user_id = context.user_id or "unknown_user"
-        session = await self._session_service.create_session(  # noqa: F841
+        session = await self._session_service.get_session(  # noqa: F841
             app_name=RULEBOOK,
             user_id=user_id,
             session_id=chat_log.conversation_id,
         )
+        if not session:
+            session = await self._session_service.create_session(  # noqa: F841
+                app_name=RULEBOOK,
+                user_id=user_id,
+                session_id=chat_log.conversation_id,
+            )
+
+        print(f"--- Examining Session Properties ---")
+        print(f"ID (`id`):                {session.id}")
+        print(f"Application Name (`app_name`): {session.app_name}")
+        print(f"User ID (`user_id`):         {session.user_id}")
+        print(f"State (`state`):           {session.state}") # Note: Only shows initial state here
+        print(f"Events (`events`):         {session.events}") # Initially empty
+        print(f"Last Update (`last_update_time`): {session.last_update_time:.2f}")
+        print(f"---------------------------------")
+
         runner = Runner(
-            agent=self._agent, app_name=RULEBOOK, session_service=self._session_service,
+            agent=self._agent,
+            app_name=RULEBOOK,
+            session_service=self._session_service,
         )
 
         last_content = chat_log.content[-1]
@@ -186,16 +204,15 @@ class RulebookConversationEntity(
             role="user", parts=[types.Part(text=last_content.content or "")]
         )
 
-        final_response_text: str = "No response received."
         run_config = RunConfig(streaming_mode=StreamingMode.SSE)
         event_stream = runner.run_async(
             session_id=chat_log.conversation_id,
             new_message=content,
             user_id=user_id,
-            run_config=run_config
+            run_config=run_config,
         )
 
-        async for content in chat_log.async_add_delta_content_stream(
+        async for chunk in chat_log.async_add_delta_content_stream(
             self.entity_id, _transform_stream(chat_log, event_stream)
         ):
             _LOGGER.debug("Chunk processed")
