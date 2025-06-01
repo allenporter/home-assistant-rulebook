@@ -28,9 +28,10 @@ custom component implementation.
     ```
 - All code and comments and other text are written in American English
 - Follow existing code style patterns as much as possible
-- See `docs/REQUIREMENTS.md` for the product requirements
-- See `docs/DESIGN.md` for the detailed design
-- See `docs/RULEBOOK_EXAMPLE.md` for the example rulebook
+- Documentatin
+  - See `docs/REQUIREMENTS.md` for the product requirements
+  - See `docs/DESIGN.md` for the detailed design
+  - See `docs/RULEBOOK_EXAMPLE.md` for the example rulebook
 - Core locations:
   - Main code directory: `custom_components/rulebook/`
   - Tests directory: `tests/`
@@ -39,6 +40,9 @@ custom component implementation.
   - Avoid sleeping in loops
   - Avoid awaiting in loops, gather instead
   - No blocking calls
+- Key dependencies:
+  - Google Agent Library https://google.github.io/adk-docs/agents/llm-agents/
+  - Home Assistant conversation agents and LLM Tasks
 - Error handling:
   - Use specific exceptions from `custom_components.rulebook.exceptions` or create if they don't exist
   - `HomeAssistantError` should be used for user-facing errors
