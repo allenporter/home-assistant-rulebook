@@ -14,17 +14,15 @@ from google.adk.agents import Agent
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 
+from .const import SUMMARIZE_MODEL
 
-# For now we're using the built in model until LLM Tasks
-# are available.
-_MODEL_NAME = "gemini-2.5-pro-preview-05-06"
 
 def async_create_agent(hass: HomeAssistant, config_entry: ConfigEntry) -> Agent:
     """Create an agent."""
 
     return Agent(
         name="weather_time_agent",
-        model=_MODEL_NAME,
+        model=SUMMARIZE_MODEL,
         description=("Agent to answer questions about the time and weather in a city."),
         instruction=(
             "You are a helpful agent who can answer user questions about the time and weather in a city."

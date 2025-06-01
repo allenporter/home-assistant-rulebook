@@ -30,6 +30,7 @@ from pytest_homeassistant_custom_component.common import (
 from custom_components.rulebook.const import (
     DOMAIN,
     CONF_API_KEY,
+    CONF_RULEBOOK,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -95,6 +96,7 @@ async def mock_config_entry(
     config_entry = MockConfigEntry(
         options={
             CONF_API_KEY: TEST_API_KEY,
+            CONF_RULEBOOK: TEST_RULEBOOK,
         },
         domain=DOMAIN,
     )

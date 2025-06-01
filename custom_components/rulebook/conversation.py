@@ -66,15 +66,19 @@ async def _transform_stream(
             # Tool calls were handled by the agent, we don't propagate them. However
             # for debugging for now we just print that we called the tool.
             tool_calls = [
-                f"I called {part.function_call.name} with {part.function_call.args}\n"
+                f"I called {part.function_call.name} with {part.function_call.args}\n"[:100] + "..."
                 for part in response_parts
                 if part.function_call
             ]
             content_parts = [part.text for part in response_parts if part.text]
-            chunk["content"] = "".join(content_parts + tool_calls)
+            content = "".join(content_parts + tool_calls)
+            if not content:
+                _LOGGER.warning("Received empty content from event: %s", event)
+                continue
+            chunk["content"] = content
             yield chunk
     except (APIError, ValueError, HomeAssistantError) as err:
-        _LOGGER.error("Error sending message: %s %s", type(err), err)
+        _LOGGER.exception("Error sending message: %s %s", type(err), err)
         if isinstance(err, APIError):
             message = err.message
         else:
