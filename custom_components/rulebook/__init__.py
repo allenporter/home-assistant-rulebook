@@ -9,7 +9,7 @@ from google import genai
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
-from . import agent_llm, agents
+from . import agents
 from .const import DOMAIN, CONF_API_KEY
 from .types import RulebookConfigEntry, RulebookContext
 
@@ -25,9 +25,6 @@ PLATFORMS: tuple[Platform] = (Platform.CONVERSATION,)
 
 async def async_setup_entry(hass: HomeAssistant, entry: RulebookConfigEntry) -> bool:
     """Set up a config entry."""
-
-    # Register the base LLM
-    agent_llm.async_register(hass, entry)
 
     # Register all agents
     llm_agent = await agents.async_create(hass, entry)

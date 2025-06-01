@@ -11,9 +11,6 @@ import logging
 
 from homeassistant.const import Platform
 from homeassistant.components import conversation
-from homeassistant.components.google_generative_ai_conversation.conversation import (
-    ERROR_GETTING_RESPONSE,
-)
 from homeassistant.core import Context, HomeAssistant
 from homeassistant.helpers import intent
 
@@ -66,13 +63,15 @@ def mock_send_message_stream_fixture() -> Generator[AsyncMock]:
         for value in stream:
             yield value
 
-    with patch(
-        "google.genai.chats.AsyncChat.send_message_stream",
-        AsyncMock(),
-    ) as mock_send_message_stream:
+    with patch("google.adk.models.google_llm.Client") as mock_client:
+        mock_send_message_stream = AsyncMock()
         mock_send_message_stream.side_effect = lambda **kwargs: mock_generator(
             mock_send_message_stream.return_value.pop(0)
         )
+        mock_client.return_value.aio.models.generate_content_stream = (
+            mock_send_message_stream
+        )
+        mock_client.return_value.vertexai.return_value = False
 
         yield mock_send_message_stream
 
@@ -89,11 +88,9 @@ async def test_error_handling(
     hass: HomeAssistant, config_entry: MockConfigEntry, error: Exception
 ) -> None:
     """Test that client errors are caught."""
-    with patch(
-        "google.genai.chats.AsyncChat.send_message_stream",
-        new_callable=AsyncMock,
-        side_effect=error,
-    ):
+    with patch("google.adk.models.google_llm.Client") as mock_client:
+        mock_client.return_value.aio.models.generate_content_stream.side_effect = error
+
         result = await conversation.async_converse(
             hass,
             "hello",
@@ -104,7 +101,8 @@ async def test_error_handling(
     assert result.response.response_type == intent.IntentResponseType.ERROR, result
     assert result.response.error_code == "unknown", result
     assert (
-        result.response.as_dict()["speech"]["plain"]["speech"] == ERROR_GETTING_RESPONSE
+        "Sorry, I had a problem getting a response"
+        in result.response.as_dict()["speech"]["plain"]["speech"]
     )
 
 
@@ -141,9 +139,7 @@ async def test_empty_response(
         Context(),
         agent_id=TEST_AGENT_ID,
     )
-    assert result.response.response_type == intent.IntentResponseType.ERROR, (
-        result
-    )
+    assert result.response.response_type == intent.IntentResponseType.ERROR, result
     assert result.response.error_code == intent.IntentResponseErrorCode.UNKNOWN
     assert (
         result.response.as_dict()["speech"]["plain"]["speech"]
@@ -196,7 +192,6 @@ async def test_response(
         result.response.as_dict()["speech"]["plain"]["speech"]
         == "Hello, how can I help you?"
     )
-
 
 
 @pytest.mark.parametrize("expected_lingering_tasks", [True])

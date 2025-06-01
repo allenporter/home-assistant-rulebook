@@ -8,6 +8,7 @@ from google.adk.agents.run_config import StreamingMode, RunConfig
 from google.adk.events.event import Event
 from google.adk.sessions import InMemorySessionService
 from google.adk.runners import Runner
+from google.genai.errors import APIError
 
 from google.genai import types
 
@@ -21,7 +22,6 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, RULEBOOK
 from .types import RulebookConfigEntry
-from .agent_llm import agent_context, AgentContext
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,34 +44,43 @@ async def _transform_stream(
 ) -> AsyncGenerator[conversation.AssistantContentDeltaDict]:
     """Transform an OpenAI delta stream into HA format."""
     start = True
-    async for event in result:
-        _LOGGER.info(
-            "Processing event: Author: %s, Type: %s, Final: %s, Content: %s",
-            event.author,
-            type(event).__name__,
-            event.is_final_response(),
-            event.content,
-        )
-        if not event.content or not (response_parts := event.content.parts):
-            continue
-        chunk: conversation.AssistantContentDeltaDict = {}
-        if start:
-            chunk["role"] = "assistant"
-            start = False
+    try:
+        async for event in result:
+            _LOGGER.info(
+                "Processing event: Author: %s, Type: %s, Final: %s, Content: %s",
+                event.author,
+                type(event).__name__,
+                event.is_final_response(),
+                event.content,
+            )
+            if event.is_final_response():
+                _LOGGER.info("Final response received, ending stream.")
+                break
+            if not event.content or not (response_parts := event.content.parts):
+                continue
+            chunk: conversation.AssistantContentDeltaDict = {}
+            if start:
+                chunk["role"] = "assistant"
+                start = False
 
-        # Tool calls were handled by the agent, we don't propagate them. However
-        # for debugging for now we just print that we called the tool.
-        tool_calls = [
-            f"I called {part.function_call.name} with {part.function_call.args}\n"
-            for part in response_parts
-            if part.function_call
-        ]
-        content_parts = [part.text for part in response_parts if part.text]
-        chunk["content"] = "".join(content_parts + tool_calls)
-        yield chunk
-        if event.is_final_response():
-            _LOGGER.info("Final response received, ending stream.")
-            break
+            # Tool calls were handled by the agent, we don't propagate them. However
+            # for debugging for now we just print that we called the tool.
+            tool_calls = [
+                f"I called {part.function_call.name} with {part.function_call.args}\n"
+                for part in response_parts
+                if part.function_call
+            ]
+            content_parts = [part.text for part in response_parts if part.text]
+            chunk["content"] = "".join(content_parts + tool_calls)
+            yield chunk
+    except (APIError, ValueError, HomeAssistantError) as err:
+        _LOGGER.error("Error sending message: %s %s", type(err), err)
+        if isinstance(err, APIError):
+            message = err.message
+        else:
+            message = type(err).__name__
+        error = f"{_ERROR_GETTING_RESPONSE}: {message}"
+        raise HomeAssistantError(error) from err
 
 
 class RulebookConversationEntity(
@@ -134,16 +143,9 @@ class RulebookConversationEntity(
         except conversation.ConverseError as err:
             return err.as_conversation_result()
 
-        with agent_context(
-            AgentContext(
-                hass=self.hass,
-                config_entry=self.entry,
-                context=user_input.context,
-            )
-        ):
-            await self._async_handle_chat_log(
-                chat_log, user_input.context, user_input.agent_id
-            )
+        await self._async_handle_chat_log(
+            chat_log, user_input.context, user_input.agent_id
+        )
 
         intent_response = intent.IntentResponse(language=user_input.language)
         if not isinstance(chat_log.content[-1], conversation.AssistantContent):
@@ -183,9 +185,13 @@ class RulebookConversationEntity(
         _LOGGER.info(f"ID (`id`):                {session.id}")
         _LOGGER.info(f"Application Name (`app_name`): {session.app_name}")
         _LOGGER.info(f"User ID (`user_id`):         {session.user_id}")
-        _LOGGER.info(f"State (`state`):           {session.state}") # Note: Only shows initial state here
-        _LOGGER.info(f"Events (`events`):         {session.events}") # Initially empty
-        _LOGGER.info(f"Last Update (`last_update_time`): {session.last_update_time:.2f}")
+        _LOGGER.info(
+            f"State (`state`):           {session.state}"
+        )  # Note: Only shows initial state here
+        _LOGGER.info(f"Events (`events`):         {session.events}")  # Initially empty
+        _LOGGER.info(
+            f"Last Update (`last_update_time`): {session.last_update_time:.2f}"
+        )
         _LOGGER.info("---------------------------------")
 
         runner = Runner(
