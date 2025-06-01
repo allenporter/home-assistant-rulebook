@@ -179,14 +179,14 @@ class RulebookConversationEntity(
                 session_id=chat_log.conversation_id,
             )
 
-        print(f"--- Examining Session Properties ---")
-        print(f"ID (`id`):                {session.id}")
-        print(f"Application Name (`app_name`): {session.app_name}")
-        print(f"User ID (`user_id`):         {session.user_id}")
-        print(f"State (`state`):           {session.state}") # Note: Only shows initial state here
-        print(f"Events (`events`):         {session.events}") # Initially empty
-        print(f"Last Update (`last_update_time`): {session.last_update_time:.2f}")
-        print(f"---------------------------------")
+        _LOGGER.info("--- Examining Session Properties ---")
+        _LOGGER.info(f"ID (`id`):                {session.id}")
+        _LOGGER.info(f"Application Name (`app_name`): {session.app_name}")
+        _LOGGER.info(f"User ID (`user_id`):         {session.user_id}")
+        _LOGGER.info(f"State (`state`):           {session.state}") # Note: Only shows initial state here
+        _LOGGER.info(f"Events (`events`):         {session.events}") # Initially empty
+        _LOGGER.info(f"Last Update (`last_update_time`): {session.last_update_time:.2f}")
+        _LOGGER.info("---------------------------------")
 
         runner = Runner(
             agent=self._agent,
