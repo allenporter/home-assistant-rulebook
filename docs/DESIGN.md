@@ -59,14 +59,16 @@ _ **Smart Home Rules:** A list of desired automations or states, with key elemen
 - **Focused Prompts:** Allows for more precise prompt engineering for different types of information.
 
 **Potential Challenges:**
-_ **Prompt Engineering:** Crafting prompts that reliably extract all necessary information accurately and in the desired structure from varied free-form text.
+_ **Prompt Engineering:** Crafting prompts that reliably extract all necessary information accurately and in the desired structure from varied free-form text, adaptable to different underlying LLMs via the HA LLM Task.
 _ **Ambiguity in Natural Language:** LLMs can still struggle with highly ambiguous phrasing.
 _ **Mapping to Home Assistant:** Ensuring the LLM's interpretation of devices, areas, and entities can be later mapped to actual Home Assistant constructs.
 _ **Consistency:** Ensuring the LLM provides output in a consistent structure across different rule books and phrasings. \* **Handling Incomplete or Malformed Input:** The LLM needs to be robust enough or the surrounding logic needs to handle cases where the rule book is poorly written or incomplete.
 
 **Tools/Technologies:**
 _ Python for overall orchestration.
-_ Google Generative AI (`google.genai`) as the primary engine for parsing and structuring the rule book text.
+_ Home Assistant's upcoming "LLM Task" feature for accessing various user-configured LLMs.
+_ A custom-built "LLM Shim" to interface between the Rulebook Parser/LLM Agent(s) and the HA LLM Task. This shim will translate requests and responses, ensuring compatibility.
+_ Google Agent Development Kit (ADK) may inform the design of the shim and is used for the agent framework itself (see Section 2.3).
 
 This parsed and structured representation of the rule book will then be passed to the LLM Agent(s) and the Home Assistant Interaction Layer to compare with the current state of the smart home and identify discrepancies or actions to be taken.
 
@@ -148,7 +150,7 @@ This layer acts as the "hands and eyes" of the Rulebook system within Home Assis
 
 ### 2.3. LLM Agent(s)
 
-This component is the "brain" of the Rulebook system. It utilizes the Google Agent Development Kit (ADK) and Google's Generative AI models to interpret the parsed rulebook, compare it with the current Home Assistant state, make decisions, and interact with the user.
+This component is the "brain" of the Rulebook system. It utilizes the Google Agent Development Kit (ADK) to structure the agent logic. For LLM interactions, it will communicate through a custom "LLM Shim" that interfaces with Home Assistant's upcoming "LLM Task" feature, allowing use of various underlying LLMs.
 
 **Guiding Principles:**
 
@@ -165,10 +167,9 @@ The LLM Agent(s) and their interactions with the user via the Conversation Inter
 **Core Structure (based on `google.adk.agents`):**
 
 1.  **Primary Coordinator Agent (`LlmAgent`):**
-
-    - As seen in `custom_components/rulebook/agents/__init__.py`, a central `LlmAgent` (e.g., named "Coordinator") will be instantiated.
-    - This agent is responsible for the overall orchestration of tasks and may delegate specific responsibilities to sub-agents.
-    - It will be configured with a primary generative model (e.g., Gemini via `google.genai.Client` initialized in `custom_components/rulebook/__init__.py`).
+    *   As seen in `custom_components/rulebook/agents/__init__.py`, a central `LlmAgent` (e.g., named "Coordinator") will be instantiated using the Google ADK.
+    *   This agent is responsible for the overall orchestration of tasks and may delegate specific responsibilities to sub-agents.
+    *   It will interact with LLMs for generative tasks via the "LLM Shim," which routes requests to the configured Home Assistant "LLM Task."
 
 2.  **Specialized Sub-Agents (`Agent` or `LlmAgent`):**
     - The Coordinator agent will manage a collection of sub-agents, each potentially specialized for a domain outlined in `REQUIREMENTS.md` (e.g., location, people, utilities, areas, automations).
@@ -228,9 +229,10 @@ The LLM Agent(s) and their interactions with the user via the Conversation Inter
 
 **Technologies:**
 
-- Google Agent Development Kit (ADK): `LlmAgent`, `Agent`, session management.
-- Google Generative AI: The underlying LLM accessed via `google.genai.Client`.
-- Python: For defining tools and agent logic.
+- Google Agent Development Kit (ADK): `LlmAgent`, `Agent`, session management for the core agent framework.
+- Home Assistant "LLM Task": The HA mechanism for invoking user-configured LLM services.
+- LLM Shim: A custom Python component responsible for translating requests from the ADK-based agents to the HA LLM Task interface and processing responses.
+- Python: For defining tools, agent logic, and the LLM Shim.
 
 This agent system, leveraging the ADK, forms the core intelligence, managing the dialogue and the lifecycle of aligning the user's rulebook with their Home Assistant setup.
 
@@ -249,8 +251,167 @@ This interface will be the primary channel for the LLM Agent(s) to communicate w
 
 ## 3. Data Flow
 
-(To be detailed: Diagrams and descriptions of how data flows between components for key use cases outlined in REQUIREMENTS.md, e.g., location configuration, automation management.)
+This section describes how data moves between the core components for key operational scenarios.
+
+### 3.1. Initial Rulebook Processing and Setup
+
+This flow describes the process from when a user provides or updates their rulebook text to when the system has parsed it and is ready to offer suggestions or make changes.
+
+1.  **User Input:**
+    *   **Data:** User's rulebook text (e.g., Markdown content).
+    *   **Source:** User provides/edits the rulebook via a Home Assistant configuration flow or options flow.
+    *   **Destination:** Stored in the config entry options.
+
+2.  **Rulebook Parsing:**
+    *   **Component:** Rulebook Parser.
+    *   **Input Data:** Raw rulebook text.
+    *   **Processing:**
+        *   The Parser uses LLM calls (as detailed in Section 2.1) to transform the text into a structured format.
+        *   This involves identifying sections (Basic Info, Areas, Utilities) and individual Smart Home Rules (Triggers, Conditions, Actions, Entities).
+    *   **Output Data:** Structured representation of the rulebook (e.g., Python dictionary/objects).
+    *   **Destination:** LLM Agent(s).
+
+3.  **State Comparison and Suggestion Formulation:**
+    *   **Component:** LLM Agent(s), Home Assistant Interaction Layer.
+    *   **Input Data:**
+        *   Structured rulebook data (from Rulebook Parser).
+        *   Current Home Assistant state (fetched by LLM Agent(s) using tools that call the Home Assistant Interaction Layer). This includes entity states, area configurations, existing automations, etc.
+    *   **Processing:**
+        *   The LLM Agent(s) compare the desired state (from the rulebook) with the actual HA state.
+        *   Discrepancies, potential new configurations, or automations are identified.
+        *   The Agent formulates suggestions or plans for changes.
+    *   **Output Data:**
+        *   A set of proposed changes, suggestions, or questions for the user.
+        *   Data for creating Repair issues (if applicable).
+    *   **Destination:** Conversation Interface (for interactive suggestions) or Home Assistant Interaction Layer (to create Repair issues).
+
+4.  **User Interaction and Confirmation:**
+    *   **Component:** Conversation Interface, LLM Agent(s), User.
+    *   **Input Data:** Proposed changes/suggestions from the LLM Agent.
+    *   **Processing:**
+        *   The Conversation Interface presents suggestions to the user (e.g., "Rulebook says your office is on the second floor, but it's not defined in HA. Create it?").
+        *   User provides confirmation or clarification.
+    *   **Output Data:** User's decision (e.g., approval, denial, modified request).
+    *   **Destination:** LLM Agent(s).
+
+5.  **Action Execution:**
+    *   **Component:** LLM Agent(s), Home Assistant Interaction Layer.
+    *   **Input Data:** Approved actions from the user.
+    *   **Processing:**
+        *   The LLM Agent instructs the Home Assistant Interaction Layer to perform the confirmed actions (e.g., create an area, generate automation YAML and add it to `rulebook_automations.yaml`, call `automation.reload`).
+    *   **Output Data:** Status of the action (success/failure).
+    *   **Destination:** LLM Agent(s) (which may then inform the user via the Conversation Interface).
+
+### 3.2. User-Initiated Conversation (e.g., "What automations control the living room lights?")
+
+This flow describes how the system handles a direct query or command from the user via the Home Assistant conversation system.
+
+1.  **User Query/Command:**
+    *   **Data:** User's natural language input.
+    *   **Source:** Home Assistant Assist Pipeline (voice or text).
+    *   **Destination:** Rulebook's Conversation Agent (registered with HA).
+
+2.  **Intent Recognition and Processing:**
+    *   **Component:** Conversation Interface, LLM Agent(s) (specifically the primary coordinator agent).
+    *   **Input Data:** User's natural language input.
+    *   **Processing:**
+        *   The ADK framework, along with the LLM, processes the input to understand the user's intent and extract relevant entities.
+        *   The Coordinator LLM Agent may delegate to specialized sub-agents if the query pertains to a specific domain (e.g., a `LightingAgent` or `AutomationAgent`).
+        *   The Agent(s) may use tools to fetch necessary information from:
+            *   The structured rulebook data (if relevant to the query, e.g., "What does my rulebook say about...")
+            *   The Home Assistant Interaction Layer (e.g., to get current states, list automations).
+    *   **Output Data:** A formulated response or a proposed action.
+    *   **Destination:** Conversation Interface (to present to the user) or Home Assistant Interaction Layer (if an action needs to be taken after confirmation).
+
+3.  **Response Generation and Delivery:**
+    *   **Component:** LLM Agent(s), Conversation Interface.
+    *   **Input Data:** Formulated response or action plan.
+    *   **Processing:**
+        *   The LLM Agent generates a natural language response.
+        *   If an action is proposed (e.g., "I found an automation. Would you like to disable it?"), the flow might merge with steps 4 & 5 of the "Initial Rulebook Processing" flow for confirmation and execution.
+    *   **Output Data:** Natural language response to the user.
+    *   **Destination:** User (via Home Assistant Assist Pipeline).
+
+### 3.3. Data Flow for Automation Management (Creation/Update)
+
+This flow focuses on how automations defined in the rulebook are translated into Home Assistant.
+
+1.  **Rule Identification:**
+    *   **Source:** Rulebook Parser identifies a "Smart Home Rule" that implies an automation.
+    *   **Data:** Structured rule (trigger, conditions, actions, entities).
+    *   **Destination:** LLM Agent(s) (e.g., an `AutomationAgent`).
+
+2.  **Automation YAML Generation:**
+    *   **Component:** LLM Agent(s).
+    *   **Input Data:** Structured rule.
+    *   **Processing:** The Agent (or a dedicated tool it uses) translates the structured rule into Home Assistant compatible automation YAML. This includes assigning a unique `rulebook_id`.
+    *   **Output Data:** Automation YAML string.
+    *   **Destination:** LLM Agent(s) (held internally, ready for proposal).
+
+3.  **Proposal and Confirmation (via Chat or Repairs):**
+    *   **Scenario A: Interactive Chat**
+        *   **Component:** LLM Agent(s), Conversation Interface, User.
+        *   **Processing:** Agent proposes creating/updating the automation. User confirms.
+    *   **Scenario B: Repairs System**
+        *   **Component:** LLM Agent(s), Home Assistant Interaction Layer, User.
+        *   **Processing:** Agent instructs Interaction Layer to create a Repair issue with the proposed YAML. User reviews and approves via the Repairs UI.
+    *   **Data:** Automation YAML, user confirmation.
+
+4.  **Saving Automation and Reloading:**
+    *   **Component:** Home Assistant Interaction Layer.
+    *   **Input Data:** Confirmed automation YAML.
+    *   **Processing:**
+        *   The Interaction Layer writes/updates the automation YAML in the dedicated `config/rulebook_automations.yaml` file.
+        *   It then calls the `automation.reload` service.
+    *   **Output Data:** Status of file write and reload.
+    *   **Destination:** LLM Agent(s) (for potential feedback to the user).
+
+This provides a high-level view of data movement. Specific API calls and detailed data structures are defined by the respective components.
 
 ## 4. Key Design Decisions
 
-(To be detailed: Significant architectural or technological choices, e.g., specific LLM models, error handling strategies, state management for long-running interactions.)
+This section outlines significant architectural and technological choices made during the design of the Rulebook system, along with their rationale.
+
+1.  **LLM-First Approach for Rulebook Parsing:**
+    *   **Decision:** Utilize a Large Language Model (LLM) as the primary mechanism for parsing the user's natural language rulebook (Section 2.1). This involves a hybrid strategy: initial LLM call(s) for global structure and simpler sections, followed by dedicated LLM calls for each smart home rule.
+    *   **Rationale:** Provides maximum flexibility for users to express their rules in free-form text. Handles the inherent ambiguity and variability of natural language better than traditional parsing techniques. The hybrid approach balances complexity and reliability.
+    *   **Technology:** Home Assistant "LLM Task" (allowing user-selected LLMs) accessed via a custom "LLM Shim".
+
+2.  **Dedicated Automation File (`rulebook_automations.yaml`):**
+    *   **Decision:** All automations generated by the Rulebook system will be stored in a dedicated YAML file (e.g., `config/rulebook_automations.yaml`), which the user includes in their main Home Assistant configuration (Section 2.2).
+    *   **Rationale:** Enhances safety and manageability. Isolates Rulebook-generated automations from the user's manually created ones, making it easier to review, modify, or remove them as a distinct set. Simplifies updates and reduces the risk of unintended changes to other automation files.
+
+3.  **Google Agent Development Kit (ADK) for Agent Logic:**
+    *   **Decision:** Employ the Google ADK (`google.adk.agents`) for building the core LLM Agent(s) (Section 2.3).
+    *   **Rationale:** The ADK provides a structured framework for developing conversational agents, including managing dialogue flow, tool usage, session state (initially `InMemorySessionService`), and interaction with LLMs. This accelerates development and promotes a modular design (Coordinator Agent and specialized sub-agents).
+
+4.  **Dual Confirmation Mechanism (Repairs System & Interactive Chat):**
+    *   **Decision:** Implement two primary methods for obtaining user confirmation before applying changes to Home Assistant: Home Assistant's built-in "Repairs" system for asynchronous review, and direct confirmation within an interactive chat session (Section 2.2).
+    *   **Rationale:** Offers flexibility to the user. Repairs are suitable for non-urgent, system-initiated suggestions. Interactive chat allows for immediate feedback and iterative refinement during active engagement with the Rulebook agent.
+
+5.  **Adoption of Guiding Principles:**
+    *   **Decision:** The design of the LLM Agent(s) and the Conversation Interface will strictly adhere to A2A-inspired principles (Section 2.3).
+    *   **Rationale:** Prioritizes user trust, control, and transparency. Ensures that the system clearly communicates its intentions, seeks explicit user consent before acting, handles errors gracefully, and aims for safe and reversible operations.
+
+6.  **Abstracted LLM Interaction via HA LLM Task and Shim:**
+    *   **Decision:** Instead of direct integration with a specific LLM provider (e.g., `google.genai`), the system will interact with LLMs through Home Assistant's upcoming "LLM Task" feature. A custom "LLM Shim" will be developed to translate requests from the Google ADK-based agents to the HA LLM Task interface.
+    *   **Rationale:** This decouples the Rulebook integration from any single LLM provider, granting users the flexibility to choose and configure their preferred LLM via Home Assistant's infrastructure. It also future-proofs the integration against changes in specific LLM APIs. The shim ensures that the ADK-based agent logic remains consistent while accommodating various LLMs.
+
+### Open Questions & Topics for Future Exploration
+
+While the core design is established, the following areas warrant further investigation and refinement as the project progresses:
+
+1.  **LLM Shim Design and LLM Capabilities:**
+    *   How will the LLM Shim best abstract the capabilities of diverse LLMs available through the HA LLM Task? What strategies will it employ to handle variations in prompt requirements, response formats, and available functionalities (e.g., tool use, vision capabilities) across different models? How can users be guided in selecting/configuring an LLM via HA that is suitable for Rulebook's needs?
+
+2.  **Advanced Error Handling & Ambiguity Resolution Strategies:**
+    *   What are the detailed recovery and clarification strategies when the LLM fails to parse a complex or ambiguous rule? How can the system most effectively guide users to rephrase or correct their rulebook text to achieve the desired outcome, minimizing user frustration?
+
+3.  **Scalability and Performance Optimization:**
+    *   As a user's rulebook grows in size and complexity, what are the performance implications, particularly concerning the number and latency of LLM calls required for parsing and analysis? Are there caching strategies or batching techniques that could optimize this?
+
+4.  **State Management for Long-Term Context and User Preferences:**
+    *   Beyond the ADK's in-memory session service for immediate conversational context, how will the system persist and recall long-term user preferences, interaction history, or partially completed tasks across different sessions or Home Assistant restarts? This could involve storing such data in the Home Assistant config entry or a dedicated storage mechanism.
+
+5.  **Security and Privacy of Rulebook Data:**
+    *   The rulebook contains potentially sensitive information about a user's home environment, routines, and devices. What specific measures, beyond standard Home Assistant practices, are needed to ensure this data is handled securely, especially when parts of it are processed by external LLM services? This includes data in transit and at rest, as well as ensuring clarity on data usage by the LLM provider.
