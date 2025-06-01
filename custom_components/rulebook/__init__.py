@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 
 from . import agents
 from .const import DOMAIN, CONF_API_KEY
+from .storage import async_read_parsed_rulebook
 from .types import RulebookConfigEntry, RulebookContext
 
 __all__ = [
@@ -25,6 +26,9 @@ PLATFORMS: tuple[Platform] = (Platform.CONVERSATION,)
 
 async def async_setup_entry(hass: HomeAssistant, entry: RulebookConfigEntry) -> bool:
     """Set up a config entry."""
+
+    # Verify the rulebook can be parsed made available if it exists
+    await async_read_parsed_rulebook(hass)
 
     # Register all agents
     llm_agent = await agents.async_create(hass, entry)
