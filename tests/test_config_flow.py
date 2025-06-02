@@ -58,3 +58,48 @@ async def test_config_flow(
         CONF_RULEBOOK: TEST_RULEBOOK,
     }
     assert len(mock_setup.mock_calls) == 1
+
+
+async def test_options_flow(
+    hass: HomeAssistant, config_entry: config_entries.ConfigEntry
+) -> None:
+    """Test options flow."""
+    assert config_entry.state is config_entries.ConfigEntryState.LOADED
+
+    # Initiate the options flow
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "init"
+    assert result["errors"] is None
+
+    # Check that the form is pre-filled with the current rulebook
+    schema = result["data_schema"]
+    defaults = schema({})  # type: ignore[misc]
+    assert defaults[CONF_RULEBOOK] == TEST_RULEBOOK
+
+    # Simulate user input with an updated rulebook
+    updated_rulebook_text = "This is the updated rulebook text."
+    with patch(
+        f"custom_components.{DOMAIN}.async_setup_entry", return_value=True
+    ) as mock_setup_entry:
+        result2 = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            user_input={CONF_RULEBOOK: updated_rulebook_text},
+        )
+        await hass.async_block_till_done()
+
+    assert result2["type"] is FlowResultType.CREATE_ENTRY
+    assert result2["data"] == {  # Options are stored in result2.data for options flow
+        CONF_API_KEY: TEST_API_KEY,  # API key should remain from initial options
+        CONF_RULEBOOK: updated_rulebook_text,
+    }
+
+    # Verify the config entry options have been updated
+    assert config_entry.options[CONF_RULEBOOK] == updated_rulebook_text
+    assert (
+        config_entry.options[CONF_API_KEY] == TEST_API_KEY
+    )  # Ensure API key is preserved
+
+    # Ensure setup is called again after options update
+    assert len(mock_setup_entry.mock_calls) == 1

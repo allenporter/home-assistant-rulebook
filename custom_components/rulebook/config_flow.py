@@ -17,7 +17,7 @@ from homeassistant.helpers import (
 
 from homeassistant.helpers.schema_config_entry_flow import (
     SchemaConfigFlowHandler,
-    SchemaCommonFlowHandler,
+    SchemaCommonFlowHandler,  # Ensure SchemaCommonFlowHandler is imported
     SchemaFlowFormStep,
 )
 
@@ -67,8 +67,21 @@ CONFIG_FLOW = {
     ),
 }
 
+
+async def _options_schema_factory(handler: SchemaCommonFlowHandler) -> vol.Schema:
+    """Return schema for an options flow."""
+    return vol.Schema(
+        {
+            vol.Required(
+                CONF_RULEBOOK,
+                default=handler.options.get(CONF_RULEBOOK, ""),
+            ): selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
+        }
+    )
+
+
 OPTIONS_FLOW = {
-    "init": SchemaFlowFormStep(),
+    "init": SchemaFlowFormStep(schema=_options_schema_factory),
 }
 
 
