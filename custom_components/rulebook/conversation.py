@@ -46,7 +46,7 @@ async def _transform_stream(
     start = True
     try:
         async for event in result:
-            _LOGGER.info(
+            _LOGGER.debug(
                 "Processing event: Author: %s, Type: %s, Final: %s, Content: %s",
                 event.author,
                 type(event).__name__,
@@ -54,8 +54,9 @@ async def _transform_stream(
                 event.content,
             )
             if event.is_final_response():
-                _LOGGER.info("Final response received, ending stream.")
-                break
+                # Note: This may be pushing up a response from a single agent run
+                _LOGGER.info("Final response received")
+                continue
             if not event.content or not (response_parts := event.content.parts):
                 continue
             chunk: conversation.AssistantContentDeltaDict = {}
@@ -66,7 +67,10 @@ async def _transform_stream(
             # Tool calls were handled by the agent, we don't propagate them. However
             # for debugging for now we just print that we called the tool.
             tool_calls = [
-                f"I called {part.function_call.name} with {part.function_call.args}\n"[:100] + "..."
+                f"I called {part.function_call.name} with {part.function_call.args}\n"[
+                    :100
+                ]
+                + "..."
                 for part in response_parts
                 if part.function_call
             ]

@@ -48,10 +48,6 @@ class Area(BaseModel):
     description: str | None = Field(
         default=None, description="Optional description of the area."
     )
-    devices: list[str] = Field(
-        default_factory=list,
-        description="List of devices primarily located or associated with this area.",
-    )
     floor: str | None = Field(
         default=None, description="Name of the floor this area is located on."
     )
