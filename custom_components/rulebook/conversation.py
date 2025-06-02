@@ -56,7 +56,9 @@ async def _transform_stream(
             if event.is_final_response():
                 # Note: This may be pushing up a response from a single agent run
                 _LOGGER.info("Final response received")
-                continue
+                if not event.partial:
+                    continue
+
             if not event.content or not (response_parts := event.content.parts):
                 continue
             chunk: conversation.AssistantContentDeltaDict = {}

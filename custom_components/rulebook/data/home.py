@@ -86,31 +86,6 @@ class ParsedSmartHomeRule(BaseModel):
         None,
         description="The core part of the rule text that seems to describe its main trigger, condition, and action logic as a single text block. This will be parsed in more detail later.",
     )
-    # --- Fields deferred for later, more detailed parsing stages ---
-    # intent: str | None = Field(
-    #     None, description="The user's overall intent or goal for this rule."
-    # )
-    # description: str | None = Field(
-    #     None,
-    #     description="A more detailed natural language description of the rule provided by the user.",
-    # )
-    # triggers: list[str] = Field(
-    #     default_factory=list,
-    #     description="List of text descriptions of triggers that initiate the rule.",
-    # )
-    # conditions: list[str] = Field(
-    #     default_factory=list,
-    #     description="List of text descriptions of conditions that must be met for the actions to execute.",
-    # )
-    # actions: list[str] = Field(
-    #     default_factory=list,
-    #     description="List of text descriptions of actions to perform when triggers and conditions are met.",
-    # )
-    # desired_states: list[str] = Field(
-    #     default_factory=list,
-    #     description="Specific states or attributes for entities (e.g., 'light should be on', 'temperature should be 22 degrees')."
-    # )
-
 
 class ParsedHomeDetails(BaseModel):
     # Meta fields about the parsing process

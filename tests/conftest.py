@@ -45,8 +45,7 @@ TEST_RULEBOOK = """\
 Location: 500 Smith Street, Brooklyn, NY, 11111
 People: Mario, Peach and their kids Bowser and Luigi
 Preferred temperature: Fahrenheit
-Preferred distance: miles
-"""
+Preferred distance: miles"""
 TEST_API_KEY = "test-api-key-1"
 
 

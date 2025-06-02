@@ -11,8 +11,6 @@ from .const import AGENT_MODEL
 
 _LOGGER = logging.getLogger(__name__)
 
-_SMART_HOME_RULE_TEXT_KEY = "smart_home_rule_text"  # Key for input
-_PARSED_SMART_HOME_RULE_KEY = "parsed_smart_home_rule"  # Key for output
 
 _RULE_PARSER_INSTRUCTION = (
     "You are an expert at parsing individual smart home rules from text snippets. "
@@ -38,20 +36,36 @@ _RULE_PARSER_INSTRUCTION = (
     "}\n"
     "'''\n"
     "The user's smart home rule text snippet is as follows:\n\n"
-    "{smart_home_rule_text}\n\n"
 )
 
 
 def async_create_agent(
-    hass: HomeAssistant, config_entry: RulebookConfigEntry
+    hass: HomeAssistant,
+    config_entry: RulebookConfigEntry,
+    input_key: str,
+    output_key: str,
 ) -> LlmAgent:
-    """Create and return an instance of the SmartHomeRuleParserAgent."""
+    """Create and return an instance of the SmartHomeRuleParserAgent.
+
+    This agent is responsible for parsing individual smart home rules from text snippets.
+    It may be invoked multiple times in parallel to handle different rules simultaneously.
+    This agent is dynamically created and as a result has a dynamic input and output
+    key with details about the specific rule to parse.
+
+    Args:
+        hass (HomeAssistant): The Home Assistant instance.
+        config_entry (RulebookConfigEntry): The configuration entry for the rulebook.
+        input_key (str): The key in the input data where the rule text snippet is located.
+        output_key (str): The key in the output data where the parsed rule will be stored.
+    Returns:
+        LlmAgent: An instance of the SmartHomeRuleParserAgent configured to parse smart home rules.
+    """
     return LlmAgent(
         name="SmartHomeRuleParserAgent",
         model=AGENT_MODEL,
         description="Parses a single smart home rule text snippet into a structured ParsedSmartHomeRule JSON format.",
-        instruction=_RULE_PARSER_INSTRUCTION,
+        instruction=_RULE_PARSER_INSTRUCTION + "{" + input_key + "}\n\n",
         disallow_transfer_to_peers=True,
         output_schema=ParsedSmartHomeRule,
-        output_key=_PARSED_SMART_HOME_RULE_KEY,
+        output_key=output_key,
     )

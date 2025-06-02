@@ -22,7 +22,6 @@ _LOGGER = logging.getLogger(__name__)
 
 _AGENT_FACTORIES: list[Callable[[HomeAssistant, RulebookConfigEntry], LlmAgent]] = [
     async_create_rulebook_parser_agent,
-    async_create_smart_home_rule_parser_agent,  # Added factory
 ]
 
 
@@ -38,6 +37,6 @@ async def async_create(
     return LlmAgent(
         name="Coordinator",
         model=AGENT_MODEL,
-        description="I coordinate greetings and tasks, including rulebook parsing.",  # Updated description
+        description="I coordinate greetings and tasks, including rulebook parsing.",
         sub_agents=sub_agents_instances,
     )

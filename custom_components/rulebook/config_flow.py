@@ -58,9 +58,7 @@ CONFIG_FLOW = {
                 # vol.Required(CONF_AGENT_ID): selector.EntitySelector(
                 #     selector.EntitySelectorConfig(domain="conversation"),
                 # ),
-                vol.Required(CONF_RULEBOOK): selector.TextSelector(
-                    selector.TextSelectorConfig(multiline=True)
-                ),
+                vol.Required(CONF_RULEBOOK): selector.TemplateSelector(),
             }
         ),
         validate_user_input=validate_user_input,
@@ -75,7 +73,7 @@ async def _options_schema_factory(handler: SchemaCommonFlowHandler) -> vol.Schem
             vol.Required(
                 CONF_RULEBOOK,
                 default=handler.options.get(CONF_RULEBOOK, ""),
-            ): selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
+            ): selector.TemplateSelector(),
         }
     )
 

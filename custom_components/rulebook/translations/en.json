@@ -3,11 +3,27 @@
   "config": {
     "step": {
       "user": {
-        "title": "Synthetic Home",
+        "title": "Rulebook",
         "description": "Please select a Conversation Agent to use with the rulebook.",
         "data": {
           "agent_id": "Conversation Agent",
           "rulebook": "Rulebook"
+        },
+        "data_description": {
+          "agent_id": "Select the Conversation Agent that will use this rulebook.",
+          "rulebook": "Please enter the descriptive rules for your home."
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "rulebook": "Rulebook"
+        },
+        "data_description": {
+          "rulebook": "Please enter the descriptive rules for your home."
         }
       }
     }

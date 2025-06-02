@@ -18,10 +18,12 @@ from collections.abc import AsyncGenerator
 from typing import override, Any
 import asyncio
 
-from google.adk.agents import LlmAgent, BaseAgent
+from google.adk.agents import LlmAgent, BaseAgent, ParallelAgent
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.events.event import Event
+from google.adk.events.event_actions import EventActions
 from google.adk.tools import FunctionTool, ToolContext
+from google.genai import types
 
 from homeassistant.core import HomeAssistant
 
@@ -34,11 +36,10 @@ from custom_components.rulebook.storage import (
 from custom_components.rulebook.data.home import ParsedHomeDetails, ParsedSmartHomeRule
 
 from .const import SUMMARIZE_MODEL, AGENT_MODEL
-from .smart_home_rule_parser_agent import (  # Added import
+from .smart_home_rule_parser_agent import (
     async_create_agent as async_create_smart_home_rule_parser_agent,
-    _SMART_HOME_RULE_TEXT_KEY,
-    _PARSED_SMART_HOME_RULE_KEY,
 )
+from .common import ParallelMaxInFlightAgent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,7 +49,8 @@ _RULEBOOK_TEXT_KEY = "rulebook_text"
 _PARSED_RULEBOOK_KEY = "parsed_rulebook"
 _PREVIOUS_PARSED_RULEBOOK_JSON_KEY = "previous_parsed_rulebook_json"
 _PARSED_RULEBOOK_JSON_KEY = "parsed_rulebook_json"
-_SIGNIFICANT_CHANGE_KEY = "significant_change"
+_RULE_TEXT_INPUT_KEY = "smart_home_rule_text_{rule_index}"
+_RULE_TEXT_OUTPUT_KEY = "parsed_smart_home_rule_{rule_index}"
 
 
 _PARSER_INSTRUCTION = (
@@ -106,7 +108,6 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
     config_entry: RulebookConfigEntry
     parser_agent: LlmAgent
     reviewer_agent: LlmAgent
-    smart_home_rule_parser_agent: LlmAgent
 
     # model_config allows setting Pydantic configurations if needed, e.g., arbitrary_types_allowed
     model_config = {"arbitrary_types_allowed": True}
@@ -121,6 +122,14 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
         rulebook_text = self.config_entry.options[CONF_RULEBOOK]
         ctx.session.state[_RULEBOOK_TEXT_KEY] = rulebook_text
 
+        yield Event(
+            author=self.name,
+            invocation_id=ctx.invocation_id,
+            content=types.Content(parts=[types.Part(text="Examining your rulebook.")]),
+            partial=True,
+            turn_complete=False,
+        )
+
         # 1. Initial Rulebook Parsing (extracts raw rule snippets)
         _LOGGER.info(f"[{self.name}] Running RulebookParser for initial parsing...")
         async for event in self.parser_agent.run_async(ctx):
@@ -128,6 +137,8 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
             _LOGGER.debug(
                 f"[{self.name}] Event from RulebookParser: {debug_info[:200]}..."
             )
+            # TODO: Don't return underlying data. However, this needs to be yielded
+            # because it updates session state. Find a fix.
             yield event
 
         if (
@@ -137,6 +148,7 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
             _LOGGER.error(
                 f"[{self.name}] Failed to generate initial rulebook details. Aborting workflow."
             )
+            # TODO: Yield useful error messages
             return
 
         initial_rulebook_dict = ctx.session.state[_PARSED_RULEBOOK_KEY]
@@ -151,86 +163,60 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
                 f"[{self.name}] Preparing to parse {len(home_details.raw_smart_home_rules_text)} rule snippets concurrently..."
             )
 
-            semaphore = asyncio.Semaphore(_MAX_CONCURRENT_RULE_PARSERS)
+            subagents = []
+            for i, snippet in enumerate(home_details.raw_smart_home_rules_text):
+                input_key = _RULE_TEXT_INPUT_KEY.format(rule_index=i)
+                output_key = _RULE_TEXT_OUTPUT_KEY.format(rule_index=i)
+                rule_parser_agent = async_create_smart_home_rule_parser_agent(
+                    self.hass,
+                    self.config_entry,
+                    input_key=input_key,
+                    output_key=output_key,
+                )
+                subagents.append(rule_parser_agent)
 
-            async def parse_single_rule(
-                rule_text_snippet: str, rule_index: int
-            ) -> ParsedSmartHomeRule | None:
-                async with semaphore:  # Acquire semaphore
-                    _LOGGER.info(
-                        f"[{self.name}] Starting parsing for rule snippet {rule_index + 1} (concurrent limit: {_MAX_CONCURRENT_RULE_PARSERS})..."
+                ctx.session.state[input_key] = snippet
+
+            parallel_agent = ParallelMaxInFlightAgent(
+                name="ParallelSmartHomeRuleParserAgent",
+                sub_agents=subagents,
+                description="Runs multiple smart home rule parser agents in parallel.",
+                max_in_flight=_MAX_CONCURRENT_RULE_PARSERS,
+            )
+
+            async for event in parallel_agent.run_async(ctx):
+                debug_info = event.model_dump_json(indent=2, exclude_none=True)
+                _LOGGER.debug(
+                    f"[{self.name}] Event from RulebookParser: {debug_info[:200]}..."
+                )
+                # TODO: Don't return underlying data. However, this needs to be yielded
+                # because it updates session state. Find a fix.
+                yield event
+
+            # Process the results of the parallel parsing
+            _LOGGER.info(
+                f"[{self.name}] Finished parsing individual smart home rules. Processing results..."
+            )
+            parsed_smart_home_rules = []
+            for i, snippet in enumerate(home_details.raw_smart_home_rules_text):
+                output_key = _RULE_TEXT_OUTPUT_KEY.format(rule_index=i)
+                parsed_rule_dict = ctx.session.state.get(output_key)
+                if not parsed_rule_dict:
+                    _LOGGER.warning(
+                        f"[{self.name}] No parsed rule found for snippet {i + 1}. This may indicate an issue with the parsing agent."
                     )
-                    rule_ctx = ctx.model_copy(
-                        update={
-                            "session": ctx.session.model_copy(
-                                update={
-                                    "state": {
-                                        **ctx.session.state,
-                                        _SMART_HOME_RULE_TEXT_KEY: rule_text_snippet,
-                                    }
-                                }
-                            )
-                        }
-                    )
-
-                    if _PARSED_SMART_HOME_RULE_KEY in rule_ctx.session.state:
-                        del rule_ctx.session.state[_PARSED_SMART_HOME_RULE_KEY]
-
-                    # Use the instance of smart_home_rule_parser_agent
-                    try:
-                        async for event in self.smart_home_rule_parser_agent.run_async(
-                            rule_ctx
-                        ):
-                            debug_info = event.model_dump_json(
-                                indent=2, exclude_none=True
-                            )
-                            _LOGGER.debug(
-                                f"[{self.name}] Event from SmartHomeRuleParser for snippet {rule_index + 1}: {debug_info[:200]}..."
-                            )
-                            # Not yielding sub-agent events here to keep pipeline flow cleaner,
-                            # but could be enabled if needed.
-
-                        parsed_rule_dict = rule_ctx.session.state.get(
-                            _PARSED_SMART_HOME_RULE_KEY
-                        )
-                        if parsed_rule_dict:
-                            try:
-                                parsed_rule = ParsedSmartHomeRule(**parsed_rule_dict)
-                                _LOGGER.info(
-                                    f"[{self.name}] Successfully parsed rule snippet {rule_index + 1}."
-                                )
-                                return parsed_rule
-                            except Exception as e:
-                                _LOGGER.error(
-                                    f"[{self.name}] Failed to validate parsed rule snippet {rule_index + 1} against ParsedSmartHomeRule schema: {e}"
-                                )
-                                return None
-                        else:
-                            _LOGGER.warning(
-                                f"[{self.name}] SmartHomeRuleParser did not produce an output for rule snippet {rule_index + 1}."
-                            )
-                            return None
-                    finally:
-                        # Semaphore is released automatically by "async with"
-                        _LOGGER.debug(
-                            f"[{self.name}] Finished processing for rule snippet {rule_index + 1}, semaphore slot released."
-                        )
-
-            tasks = [
-                parse_single_rule(snippet, i)
-                for i, snippet in enumerate(home_details.raw_smart_home_rules_text)
-            ]
-
-            results = await asyncio.gather(*tasks)
-
-            parsed_smart_home_rules = [res for res in results if res is not None]
-
+                    continue
+                _LOGGER.debug(
+                    f"[{self.name}] Parsed rule snippet {i + 1}: {parsed_rule_dict}"
+                )
+                parsed_rule = ParsedSmartHomeRule(**parsed_rule_dict)
+                parsed_smart_home_rules.append(parsed_rule)
+            _LOGGER.info(
+                f"[{self.name}] Successfully parsed {len(parsed_smart_home_rules)} smart home rules."
+            )
             home_details.smart_home_rules = parsed_smart_home_rules
             # Update the main parsed rulebook in the context state with the fully parsed rules
             ctx.session.state[_PARSED_RULEBOOK_KEY] = home_details.model_dump()
-            _LOGGER.info(
-                f"[{self.name}] Finished concurrent parsing of smart home rules. Total successfully parsed: {len(parsed_smart_home_rules)}/{len(home_details.raw_smart_home_rules_text)}."
-            )
         else:
             _LOGGER.info(
                 f"[{self.name}] No raw smart home rule snippets found to parse."
@@ -251,6 +237,13 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
         )
         ctx.session.state[_PARSED_RULEBOOK_JSON_KEY] = home_details.model_dump_json(
             indent=2
+        )
+        yield Event(
+            author=self.name,
+            invocation_id=ctx.invocation_id,
+            content=types.Content(parts=[types.Part(text="Let me take a look at your previous rulebook. ")]),
+            partial=True,
+            turn_complete=False,
         )
 
         # Use the reviewer_agent instance attribute assigned during init
@@ -316,9 +309,6 @@ def async_create_agent(
             FunctionTool(func=tools.store_rulebook),
         ],
     )
-    smart_home_rule_parser_agent = async_create_smart_home_rule_parser_agent(
-        hass, config_entry
-    )
     pipeline_agent = RulebookPipelineAgent(
         name="RulebookPipelineAgent",
         description="Orchestrates the rulebook parsing and review process.",
@@ -326,6 +316,5 @@ def async_create_agent(
         config_entry=config_entry,
         parser_agent=parser_agent,
         reviewer_agent=reviewer_agent,
-        smart_home_rule_parser_agent=smart_home_rule_parser_agent,
     )
     return pipeline_agent
