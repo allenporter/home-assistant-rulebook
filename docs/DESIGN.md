@@ -22,7 +22,7 @@ The Rulebook Parsing Process is responsible for taking the user-provided text fo
 _ **Basic Information:** Location, preferred units (temperature, distance), list of people.
 _ **Areas and Structure:** Hierarchical representation of floors, rooms, and their connections.
 _ **Utility Providers:** Information about energy, water, and gas providers.
-_ **Smart Home Rules:** A list of desired automations or states, with key elements extracted (e.g., triggers, conditions, actions, entities involved, desired states).
+_ **Smart Home Rules:** A list of desired automations or states, with key elements extracted (e.g., triggers, conditions, actions, entities involved, desired states). The specific structure for these rules is defined by the `ParsedSmartHomeRule` model in `custom_components/rulebook/data/home.py`.
 
 The core of this process involves leveraging a capable Large Language Model, accessed via the HA LLM Task and the LLM Shim, to interpret the natural language input.
 
@@ -49,7 +49,7 @@ This specialized agent is responsible for executing the Rulebook Parsing Process
 
     - The agent iterates through each identified "Smart Home Rule" text snippet obtained from the previous step.
     - For each individual rule, it makes a separate, focused LLM call (via the LLM Shim and HA LLM Task).
-    - **Prompt Goal:** Parse the single rule and extract its core components:
+    - **Prompt Goal:** Parse the single rule and extract its core components, aiming to populate an instance of the `ParsedSmartHomeRule` model (defined in `custom_components/rulebook/data/home.py`):
       - Intent: The primary goal of the rule.
       - Entities: Devices, locations, people involved.
       - Triggers: What causes the rule to activate.

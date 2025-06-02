@@ -37,12 +37,6 @@ class BasicInfo(BaseModel):
     )
 
 
-class Floor(BaseModel):
-    name: str = Field(
-        description="Name of the floor (e.g., 'Ground floor', 'First floor', 'Basement', 'Second floor')."
-    )
-
-
 class Area(BaseModel):
     name: str = Field(description="Name of the area (e.g., 'Living Room', 'Kitchen').")
     description: str | None = Field(
@@ -66,6 +60,58 @@ class UtilityProvider(BaseModel):
     )
 
 
+class ParsedSmartHomeRule(BaseModel):
+    """Data model for a parsed smart home rule (simplified initial pass).
+
+    This model captures the most basic, directly extractable components of a smart home rule
+    from a natural language description. More detailed parsing is deferred.
+    """
+
+    model_config = ConfigDict(
+        extra="ignore"
+    )  # Changed to ignore for stricter initial parsing
+
+    rule_raw_text: str = Field(
+        description="The original, unprocessed smart home rule text snippet provided by the user."
+    )
+    rule_name: str | None = Field(
+        None,
+        description="A descriptive name or summary of the rule, if clearly identifiable in the text.",
+    )
+    entities_mentioned: list[str] = Field(
+        default_factory=list,
+        description="List of textual mentions of devices, services, people, or abstract concepts (e.g., 'kitchen light', 'front door sensor', 'sunset', 'weekday') found within the rule snippet.",
+    )
+    core_logic_text: str | None = Field(
+        None,
+        description="The core part of the rule text that seems to describe its main trigger, condition, and action logic as a single text block. This will be parsed in more detail later.",
+    )
+    # --- Fields deferred for later, more detailed parsing stages ---
+    # intent: str | None = Field(
+    #     None, description="The user's overall intent or goal for this rule."
+    # )
+    # description: str | None = Field(
+    #     None,
+    #     description="A more detailed natural language description of the rule provided by the user.",
+    # )
+    # triggers: list[str] = Field(
+    #     default_factory=list,
+    #     description="List of text descriptions of triggers that initiate the rule.",
+    # )
+    # conditions: list[str] = Field(
+    #     default_factory=list,
+    #     description="List of text descriptions of conditions that must be met for the actions to execute.",
+    # )
+    # actions: list[str] = Field(
+    #     default_factory=list,
+    #     description="List of text descriptions of actions to perform when triggers and conditions are met.",
+    # )
+    # desired_states: list[str] = Field(
+    #     default_factory=list,
+    #     description="Specific states or attributes for entities (e.g., 'light should be on', 'temperature should be 22 degrees')."
+    # )
+
+
 class ParsedHomeDetails(BaseModel):
     # Meta fields about the parsing process
     raw_text: str = Field(
@@ -85,61 +131,27 @@ class ParsedHomeDetails(BaseModel):
     location_details: LocationDetails | None = Field(
         default=None, description="Details about the home's location."
     )
-    key_people: list[str] | None = Field(
-        default_factory=list,  # type: ignore[arg-type]
+    key_people: list[str] = Field(
+        default_factory=list,
         description="Names of key people residing in the home.",
     )
-    floors: list[Floor] = Field(
+    floor_mentions: list[str] = Field(
         default_factory=list,
-        description="Named list of floors that exist in the home.",
+        description="List of text mentions of floors found in the rulebook (e.g., 'Ground floor', 'upstairs'). To be structured later.",
     )
-    areas_and_structure: list[Area] = Field(
+    area_mentions: list[str] = Field(
         default_factory=list,
-        description="List of all areas, rooms, and zones in the home, including their structure and associated devices.",
+        description="List of text mentions of areas or rooms found in the rulebook (e.g., 'living room', 'kitchen', 'master bedroom'). To be structured later.",
     )
-    utility_providers: list[UtilityProvider] = Field(
+    utility_provider_mentions: list[str] = Field(
         default_factory=list,
-        description="Information about utility providers (electricity, gas, internet, etc.).",
+        description="List of text mentions of utility providers found in the rulebook (e.g., 'City Electric for power', 'Comcast for internet'). To be structured later.",
     )
-
-
-class ParsedSmartHomeRule(BaseModel):
-    """Data model for a parsed smart home rule.
-
-    This model captures the structured components of a smart home rule
-    extracted from a natural language description.
-    It includes the rule's name, intent, description, and lists of triggers,
-    conditions, and actions, along with the original raw text input.
-    """
-
-    model_config = ConfigDict(extra="allow")
-
-    rule_raw_text: str = Field(
-        description="The original, unprocessed smart home rules text provided by the user."
-    )
-    rule_name: str | None = Field(
-        None, description="A descriptive name or summary of the rule."
-    )
-    intent: str | None = Field(
-        None, description="The user's overall intent or goal for this rule."
-    )
-    description: str | None = Field(
-        None,
-        description="A more detailed natural language description of the rule provided by the user.",
-    )
-    entities: list[str] = Field(
+    raw_smart_home_rules_text: list[str] = Field(
         default_factory=list,
-        description="Comprehensive list of unique textual devices and entity mentions (e.g., 'kitchen light', 'front door sensor') found across the rule's natural language description, intent, triggers, conditions, and actions.",
+        description="List of raw text snippets for individual smart home rules identified by the parser.",
     )
-    triggers: list[str] = Field(
+    smart_home_rules: list[ParsedSmartHomeRule] = Field(
         default_factory=list,
-        description="List of text descriptions of triggers that initiate the rule.",
-    )
-    conditions: list[str] = Field(
-        default_factory=list,
-        description="List of text descriptions of conditions that must be met for the actions to execute.",
-    )
-    actions: list[str] = Field(
-        default_factory=list,
-        description="List of text descriptions of actions to perform when triggers and conditions are met.",
+        description="List of parsed individual smart home rules.",
     )

@@ -16,6 +16,7 @@ The goal of this is a workflow (series of agents/tools) that will do the followi
 import logging
 from collections.abc import AsyncGenerator
 from typing import override, Any
+import asyncio
 
 from google.adk.agents import LlmAgent, BaseAgent
 from google.adk.agents.invocation_context import InvocationContext
@@ -30,11 +31,18 @@ from custom_components.rulebook.storage import (
     async_write_parsed_rulebook,
     async_read_parsed_rulebook,
 )
-from custom_components.rulebook.data.home import ParsedHomeDetails
+from custom_components.rulebook.data.home import ParsedHomeDetails, ParsedSmartHomeRule
 
-from .const import SUMMARIZE_MODEL
+from .const import SUMMARIZE_MODEL, AGENT_MODEL
+from .smart_home_rule_parser_agent import (  # Added import
+    async_create_agent as async_create_smart_home_rule_parser_agent,
+    _SMART_HOME_RULE_TEXT_KEY,
+    _PARSED_SMART_HOME_RULE_KEY,
+)
 
 _LOGGER = logging.getLogger(__name__)
+
+_MAX_CONCURRENT_RULE_PARSERS = 5
 
 _RULEBOOK_TEXT_KEY = "rulebook_text"
 _PARSED_RULEBOOK_KEY = "parsed_rulebook"
@@ -47,12 +55,19 @@ _PARSER_INSTRUCTION = (
     "You are an expert at parsing free-form text rulebooks for smart homes. "
     "Your primary task is to understand and structure the entire rulebook provided in the prompt. "
     "Analyze the rulebook text to identify: "
-    "1. Global/Basic Information (home name, location details, key people, default language). "
-    "2. Areas and their structure (rooms, zones, associated devices, sub-areas). "
-    "3. Utility Providers (electricity, gas, internet, water with names and service types). "
+    "1. Global/Basic Information (home name, default language). "
+    "2. Location Details (address, timezone, etc.). "
+    "3. Key People involved in the home. "
+    "4. Mentions of Floors (e.g., 'first floor', 'upstairs', 'basement'). Extract these as a list of strings. "
+    "5. Mentions of Areas or Structures (e.g., 'living room', 'kitchen', 'garden shed'). Extract these as a list of strings. "
+    "6. Mentions of Utility Providers (e.g., 'City Electric', 'Comcast Internet'). Extract these as a list of strings. "
+    "7. Individual Smart Home Rules. Extract the raw text for each distinct smart home rule you identify. These rules typically describe a cause-and-effect relationship (e.g., 'IF something happens THEN do something else'). "
     "Your information will later be used to create Smart Home Rules independently, but you are not responsible for that. "
     "You MUST respond with a single, comprehensive JSON object that strictly conforms to the 'ParsedHomeDetails' schema. "
-    "The schema defines keys like 'raw_text', 'parsed_status', 'basic_info', 'floors', 'areas', 'utility_providers', 'key_people', 'location_details'. "
+    "The schema defines keys like 'raw_text', 'parsed_status', 'basic_info', 'location_details', 'key_people', "
+    "'floor_mentions', 'area_mentions', 'utility_provider_mentions', and 'raw_smart_home_rules_text'. "
+    "Populate the 'floor_mentions', 'area_mentions', and 'utility_provider_mentions' fields with lists of strings, where each string is a direct mention from the text. "
+    "Populate the 'raw_smart_home_rules_text' field with a list of strings, where each string is the exact text of an individual smart home rule you extracted. "
     "Ensure all parts of the rulebook are mapped to the appropriate fields in this schema. "
     "If a section of the rulebook is unclear or missing, use null or empty lists/objects for the corresponding schema fields where appropriate, "
     "but always return a valid JSON object matching the schema structure. "
@@ -65,6 +80,7 @@ _PARSER_INSTRUCTION = (
 _REVIEWER_INSTRUCTION = (
     "You are an expert at reviewing parsed rulebooks. "
     "Your primary task is to compare a newly parsed rulebook JSON with a previous version and decide if the changes are significant enough to warrant updating the stored version. "
+    "The rulebook JSON now includes a 'smart_home_rules' field, which contains a list of parsed individual smart home rules. Each rule in this list conforms to the 'ParsedSmartHomeRule' schema, primarily containing 'rule_raw_text', 'rule_name', 'entities_mentioned', and 'core_logic_text'. Pay close attention to changes in this list. "
     "If you determine the changes are significant, you MUST call the 'store_rulebook' tool to save the new version. "
     "If the changes are minor or non-existent, you should NOT call the tool. "
     "After making your decision, you MUST provide a concise explanation to the user about what you did and why. "
@@ -76,9 +92,9 @@ _REVIEWER_INSTRUCTION = (
     "{parsed_rulebook_json}\\n\\n"
     "Follow these steps:"
     "1. Analyze both JSON objects to identify differences. "
-    "2. Determine if these differences constitute a 'significant change'. A significant change includes modifications to structure, key information (like areas, people, utility providers), or overall content that would impact how the smart home operates or is understood. Minor formatting or rephrasing that doesn't alter meaning is not significant. "
-    "3. If changes are significant: Call the 'store_rulebook' tool. Then, respond to the user, for example: 'I found significant updates in the rulebook, particularly regarding [specific area, e.g., new devices in the kitchen and updated utility providers]. I have now stored the latest version.' "
-    "4. If changes are NOT significant: Do NOT call the 'store_rulebook' tool. Then, respond to the user, for example: 'I reviewed the rulebook. The recent modifications appear to be minor (e.g., slight rephrasing) and don\\'t substantially change its core details. The stored version remains unchanged.' "
+    "2. Determine if these differences constitute a 'significant change'. A significant change includes modifications to structure, key information (like 'basic_info', 'location_details', 'key_people', 'floor_mentions', 'area_mentions', 'utility_provider_mentions', or the list of 'smart_home_rules' and their details), or overall content that would impact how the smart home operates or is understood. Minor formatting or rephrasing that doesn't alter meaning is not significant. Changes to 'smart_home_rules' (e.g., new rules, deleted rules, or modifications to a rule's 'rule_name', 'entities_mentioned', or 'core_logic_text') are generally considered significant. "
+    "3. If changes are significant: Call the 'store_rulebook' tool. Then, respond to the user, for example: 'I found significant updates in the rulebook, particularly regarding [specific area, e.g., new smart home rules for the kitchen and updated utility provider mentions]. I have now stored the latest version.' "
+    "4. If changes are NOT significant: Do NOT call the 'store_rulebook' tool. Then, respond to the user, for example: 'I reviewed the rulebook. The recent modifications appear to be minor (e.g., slight rephrasing in descriptions) and don\\\\\\'t substantially change its core details or smart home rules. The stored version remains unchanged.' "
     "Your response to the user is crucial after your decision."
 )
 
@@ -90,6 +106,7 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
     config_entry: RulebookConfigEntry
     parser_agent: LlmAgent
     reviewer_agent: LlmAgent
+    smart_home_rule_parser_agent: LlmAgent
 
     # model_config allows setting Pydantic configurations if needed, e.g., arbitrary_types_allowed
     model_config = {"arbitrary_types_allowed": True}
@@ -104,36 +121,126 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
         rulebook_text = self.config_entry.options[CONF_RULEBOOK]
         ctx.session.state[_RULEBOOK_TEXT_KEY] = rulebook_text
 
-        # 1. Initial Rulebook Parsing
-        _LOGGER.info(f"[{self.name}] Running RulebookParser...")
+        # 1. Initial Rulebook Parsing (extracts raw rule snippets)
+        _LOGGER.info(f"[{self.name}] Running RulebookParser for initial parsing...")
         async for event in self.parser_agent.run_async(ctx):
             debug_info = event.model_dump_json(indent=2, exclude_none=True)
-
             _LOGGER.debug(
                 f"[{self.name}] Event from RulebookParser: {debug_info[:200]}..."
-            )  # Log first 200 chars for brevity
+            )
             yield event
 
-        # Check if rulebook was parsed before proceeding
         if (
             _PARSED_RULEBOOK_KEY not in ctx.session.state
             or not ctx.session.state[_PARSED_RULEBOOK_KEY]
         ):
             _LOGGER.error(
-                f"[{self.name}] Failed to generate initial rulebook. Aborting workflow."
+                f"[{self.name}] Failed to generate initial rulebook details. Aborting workflow."
             )
-            return  # Stop processing if initial rulebook failed
-        rulebook_dict = ctx.session.state[_PARSED_RULEBOOK_KEY]
-        home_details = ParsedHomeDetails(**rulebook_dict)
+            return
 
+        initial_rulebook_dict = ctx.session.state[_PARSED_RULEBOOK_KEY]
+        home_details = ParsedHomeDetails(**initial_rulebook_dict)
         _LOGGER.info(
-            f"[{self.name}] Rulebook state after generator: {ctx.session.state.get(_PARSED_RULEBOOK_KEY)}"
+            f"[{self.name}] Initial parsing complete. Found {len(home_details.raw_smart_home_rules_text)} raw rule snippets."
         )
 
-        # 2. Rulebook Review
-        _LOGGER.info(f"[{self.name}] Running RulebookReviewer...")
+        # 2. Parse Individual Smart Home Rules Concurrently
+        if home_details.raw_smart_home_rules_text:
+            _LOGGER.info(
+                f"[{self.name}] Preparing to parse {len(home_details.raw_smart_home_rules_text)} rule snippets concurrently..."
+            )
 
-        current_parsed_rulebook = await async_read_parsed_rulebook(self.hass, self.config_entry.entry_id)
+            semaphore = asyncio.Semaphore(_MAX_CONCURRENT_RULE_PARSERS)
+
+            async def parse_single_rule(
+                rule_text_snippet: str, rule_index: int
+            ) -> ParsedSmartHomeRule | None:
+                async with semaphore:  # Acquire semaphore
+                    _LOGGER.info(
+                        f"[{self.name}] Starting parsing for rule snippet {rule_index + 1} (concurrent limit: {_MAX_CONCURRENT_RULE_PARSERS})..."
+                    )
+                    rule_ctx = ctx.model_copy(
+                        update={
+                            "session": ctx.session.model_copy(
+                                update={
+                                    "state": {
+                                        **ctx.session.state,
+                                        _SMART_HOME_RULE_TEXT_KEY: rule_text_snippet,
+                                    }
+                                }
+                            )
+                        }
+                    )
+
+                    if _PARSED_SMART_HOME_RULE_KEY in rule_ctx.session.state:
+                        del rule_ctx.session.state[_PARSED_SMART_HOME_RULE_KEY]
+
+                    # Use the instance of smart_home_rule_parser_agent
+                    try:
+                        async for event in self.smart_home_rule_parser_agent.run_async(
+                            rule_ctx
+                        ):
+                            debug_info = event.model_dump_json(
+                                indent=2, exclude_none=True
+                            )
+                            _LOGGER.debug(
+                                f"[{self.name}] Event from SmartHomeRuleParser for snippet {rule_index + 1}: {debug_info[:200]}..."
+                            )
+                            # Not yielding sub-agent events here to keep pipeline flow cleaner,
+                            # but could be enabled if needed.
+
+                        parsed_rule_dict = rule_ctx.session.state.get(
+                            _PARSED_SMART_HOME_RULE_KEY
+                        )
+                        if parsed_rule_dict:
+                            try:
+                                parsed_rule = ParsedSmartHomeRule(**parsed_rule_dict)
+                                _LOGGER.info(
+                                    f"[{self.name}] Successfully parsed rule snippet {rule_index + 1}."
+                                )
+                                return parsed_rule
+                            except Exception as e:
+                                _LOGGER.error(
+                                    f"[{self.name}] Failed to validate parsed rule snippet {rule_index + 1} against ParsedSmartHomeRule schema: {e}"
+                                )
+                                return None
+                        else:
+                            _LOGGER.warning(
+                                f"[{self.name}] SmartHomeRuleParser did not produce an output for rule snippet {rule_index + 1}."
+                            )
+                            return None
+                    finally:
+                        # Semaphore is released automatically by "async with"
+                        _LOGGER.debug(
+                            f"[{self.name}] Finished processing for rule snippet {rule_index + 1}, semaphore slot released."
+                        )
+
+            tasks = [
+                parse_single_rule(snippet, i)
+                for i, snippet in enumerate(home_details.raw_smart_home_rules_text)
+            ]
+
+            results = await asyncio.gather(*tasks)
+
+            parsed_smart_home_rules = [res for res in results if res is not None]
+
+            home_details.smart_home_rules = parsed_smart_home_rules
+            # Update the main parsed rulebook in the context state with the fully parsed rules
+            ctx.session.state[_PARSED_RULEBOOK_KEY] = home_details.model_dump()
+            _LOGGER.info(
+                f"[{self.name}] Finished concurrent parsing of smart home rules. Total successfully parsed: {len(parsed_smart_home_rules)}/{len(home_details.raw_smart_home_rules_text)}."
+            )
+        else:
+            _LOGGER.info(
+                f"[{self.name}] No raw smart home rule snippets found to parse."
+            )
+
+        # 3. Rulebook Review
+        _LOGGER.info(f"[{self.name}] Running RulebookReviewer...")
+        current_parsed_rulebook = await async_read_parsed_rulebook(
+            self.hass, self.config_entry.entry_id
+        )
         current_parsed_rulebook_json = (
             current_parsed_rulebook.model_dump_json(indent=2)
             if current_parsed_rulebook
@@ -177,7 +284,9 @@ class RulebookStorageTool:
         rulebook_dict = tool_context.state[_PARSED_RULEBOOK_KEY]
         home_details = ParsedHomeDetails(**rulebook_dict)
 
-        await async_write_parsed_rulebook(self.hass, home_details, self.config_entry.entry_id)
+        await async_write_parsed_rulebook(
+            self.hass, home_details, self.config_entry.entry_id
+        )
         return {
             "success": True,
             "message": "Parsed rulebook written successfully.",
@@ -190,7 +299,7 @@ def async_create_agent(
     """Create and return an instance of the RulebookParserAgent."""
     parser_agent = LlmAgent(
         name="RulebookParserAgent",
-        model=SUMMARIZE_MODEL,
+        model=AGENT_MODEL,
         description="Parses user rulebooks into a structured JSON format representing ParsedHomeDetails.",
         instruction=_PARSER_INSTRUCTION,
         output_schema=ParsedHomeDetails,
@@ -207,6 +316,9 @@ def async_create_agent(
             FunctionTool(func=tools.store_rulebook),
         ],
     )
+    smart_home_rule_parser_agent = async_create_smart_home_rule_parser_agent(
+        hass, config_entry
+    )
     pipeline_agent = RulebookPipelineAgent(
         name="RulebookPipelineAgent",
         description="Orchestrates the rulebook parsing and review process.",
@@ -214,5 +326,6 @@ def async_create_agent(
         config_entry=config_entry,
         parser_agent=parser_agent,
         reviewer_agent=reviewer_agent,
+        smart_home_rule_parser_agent=smart_home_rule_parser_agent,
     )
     return pipeline_agent
