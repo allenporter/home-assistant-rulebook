@@ -101,3 +101,45 @@ class ParsedHomeDetails(BaseModel):
         default_factory=list,
         description="Information about utility providers (electricity, gas, internet, etc.).",
     )
+
+
+class ParsedSmartHomeRule(BaseModel):
+    """Data model for a parsed smart home rule.
+
+    This model captures the structured components of a smart home rule
+    extracted from a natural language description.
+    It includes the rule's name, intent, description, and lists of triggers,
+    conditions, and actions, along with the original raw text input.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    rule_raw_text: str = Field(
+        description="The original, unprocessed smart home rules text provided by the user."
+    )
+    rule_name: str | None = Field(
+        None, description="A descriptive name or summary of the rule."
+    )
+    intent: str | None = Field(
+        None, description="The user's overall intent or goal for this rule."
+    )
+    description: str | None = Field(
+        None,
+        description="A more detailed natural language description of the rule provided by the user.",
+    )
+    entities: list[str] = Field(
+        default_factory=list,
+        description="Comprehensive list of unique textual devices and entity mentions (e.g., 'kitchen light', 'front door sensor') found across the rule's natural language description, intent, triggers, conditions, and actions.",
+    )
+    triggers: list[str] = Field(
+        default_factory=list,
+        description="List of text descriptions of triggers that initiate the rule.",
+    )
+    conditions: list[str] = Field(
+        default_factory=list,
+        description="List of text descriptions of conditions that must be met for the actions to execute.",
+    )
+    actions: list[str] = Field(
+        default_factory=list,
+        description="List of text descriptions of actions to perform when triggers and conditions are met.",
+    )
