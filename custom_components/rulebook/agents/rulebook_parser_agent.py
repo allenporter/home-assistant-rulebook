@@ -133,7 +133,7 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
         # 2. Rulebook Review
         _LOGGER.info(f"[{self.name}] Running RulebookReviewer...")
 
-        current_parsed_rulebook = await async_read_parsed_rulebook(self.hass)
+        current_parsed_rulebook = await async_read_parsed_rulebook(self.hass, self.config_entry.entry_id)
         current_parsed_rulebook_json = (
             current_parsed_rulebook.model_dump_json(indent=2)
             if current_parsed_rulebook
@@ -159,9 +159,10 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
 class RulebookStorageTool:
     """Tool for reading and writing the parsed rulebook to storage."""
 
-    def __init__(self, hass: HomeAssistant) -> None:
+    def __init__(self, hass: HomeAssistant, config_entry: RulebookConfigEntry) -> None:
         """Initialize the RulebookStorageTool with the Home Assistant instance."""
         self.hass = hass
+        self.config_entry = config_entry
 
     async def store_rulebook(self, tool_context: ToolContext) -> dict[str, Any]:
         """Tool for storing the parsed rulebook for this session in storage.
@@ -176,7 +177,7 @@ class RulebookStorageTool:
         rulebook_dict = tool_context.state[_PARSED_RULEBOOK_KEY]
         home_details = ParsedHomeDetails(**rulebook_dict)
 
-        await async_write_parsed_rulebook(self.hass, home_details)
+        await async_write_parsed_rulebook(self.hass, home_details, self.config_entry.entry_id)
         return {
             "success": True,
             "message": "Parsed rulebook written successfully.",
@@ -195,7 +196,7 @@ def async_create_agent(
         output_schema=ParsedHomeDetails,
         output_key=_PARSED_RULEBOOK_KEY,
     )
-    tools = RulebookStorageTool(hass)
+    tools = RulebookStorageTool(hass, config_entry)
     reviewer_agent = LlmAgent(
         name="RulebookReviewerAgent",
         model=SUMMARIZE_MODEL,

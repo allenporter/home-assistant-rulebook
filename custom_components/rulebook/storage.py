@@ -18,17 +18,18 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_write_parsed_rulebook(
-    hass: HomeAssistant, parsed_rulebook: ParsedHomeDetails
+    hass: HomeAssistant, parsed_rulebook: ParsedHomeDetails, config_entry_id: str
 ) -> None:
-    """Write the parsed rulebook to a file.
+    """Write the parsed rulebook to a file specific to the config entry.
 
-    The rulebook is stored as a JSON file in the Home Assistant config directory.
+    The rulebook is stored as a JSON file in the Home Assistant config directory,
+    under a subdirectory named after the config_entry_id.
     """
-    storage_path = hass.config.path(STORAGE_DIR)
-    if not await aio_path.isdir(storage_path):
-        await aio_makedirs(storage_path)
-    file_path = hass.config.path(STORAGE_DIR, PARSED_RULEBOOK_FILENAME)
-    _LOGGER.debug("Writing parsed rulebook to %s", file_path)
+    entry_storage_path = hass.config.path(STORAGE_DIR, config_entry_id)
+    await aio_makedirs(entry_storage_path, exist_ok=True)
+
+    file_path = hass.config.path(STORAGE_DIR, config_entry_id, PARSED_RULEBOOK_FILENAME)
+    _LOGGER.debug("Writing parsed rulebook for entry %s to %s", config_entry_id, file_path)
     try:
         async with aio_open(file_path, "w") as f:
             await f.write(parsed_rulebook.model_dump_json(indent=2))
@@ -39,17 +40,17 @@ async def async_write_parsed_rulebook(
         ) from err
 
 
-async def async_read_parsed_rulebook(hass: HomeAssistant) -> ParsedHomeDetails | None:
-    """Read the parsed rulebook from a file.
+async def async_read_parsed_rulebook(hass: HomeAssistant, config_entry_id: str) -> ParsedHomeDetails | None:
+    """Read the parsed rulebook from a file specific to the config entry.
 
     Returns the parsed rulebook or None if the file does not exist or is invalid.
     """
-    file_path = hass.config.path(STORAGE_DIR, PARSED_RULEBOOK_FILENAME)
+    file_path = hass.config.path(STORAGE_DIR, config_entry_id, PARSED_RULEBOOK_FILENAME)
     if not await aio_path.exists(file_path):
-        _LOGGER.debug("Parsed rulebook file not found at %s", file_path)
+        _LOGGER.debug("Parsed rulebook file for entry %s not found at %s", config_entry_id, file_path)
         return None
 
-    _LOGGER.debug("Reading parsed rulebook from %s", file_path)
+    _LOGGER.debug("Reading parsed rulebook for entry %s from %s", config_entry_id, file_path)
     try:
         async with aio_open(file_path, "r") as f:
             content = await f.read()

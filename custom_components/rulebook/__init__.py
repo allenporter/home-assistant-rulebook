@@ -28,7 +28,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: RulebookConfigEntry) -> 
     """Set up a config entry."""
 
     # Verify the rulebook can be parsed made available if it exists
-    await async_read_parsed_rulebook(hass)
+    await async_read_parsed_rulebook(hass, entry.entry_id)
 
     # Register all agents
     llm_agent = await agents.async_create(hass, entry)
