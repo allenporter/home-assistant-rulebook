@@ -14,9 +14,6 @@ from .const import AGENT_MODEL
 from .rulebook_parser_agent import (
     async_create_agent as async_create_rulebook_parser_agent,
 )
-from .smart_home_rule_parser_agent import (
-    async_create_agent as async_create_smart_home_rule_parser_agent,
-)
 
 _LOGGER = logging.getLogger(__name__)
 
