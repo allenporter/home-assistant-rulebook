@@ -16,12 +16,10 @@ The goal of this is a workflow (series of agents/tools) that will do the followi
 import logging
 from collections.abc import AsyncGenerator
 from typing import override, Any
-import asyncio
 
-from google.adk.agents import LlmAgent, BaseAgent, ParallelAgent
+from google.adk.agents import LlmAgent, BaseAgent
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.events.event import Event
-from google.adk.events.event_actions import EventActions
 from google.adk.tools import FunctionTool, ToolContext
 from google.genai import types
 
@@ -78,6 +76,7 @@ _PARSER_INSTRUCTION = (
     "The user's rulebook is as follows:\n\n"
     "{rulebook_text}\n\n"
 )
+
 
 _REVIEWER_INSTRUCTION = (
     "You are an expert at reviewing parsed rulebooks. "
@@ -241,7 +240,11 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
         yield Event(
             author=self.name,
             invocation_id=ctx.invocation_id,
-            content=types.Content(parts=[types.Part(text="Let me take a look at your previous rulebook. ")]),
+            content=types.Content(
+                parts=[
+                    types.Part(text="Let me take a look at your previous rulebook. ")
+                ]
+            ),
             partial=True,
             turn_complete=False,
         )
