@@ -61,16 +61,16 @@ async def _transform_stream(
 
             if not event.content or not (response_parts := event.content.parts):
                 continue
+            content_parts = [part.text for part in response_parts if part.text]
+            content = "".join(content_parts)
+            if not content:
+                _LOGGER.debug("Received empty content from event: %s", event)
+                continue
+
             chunk: conversation.AssistantContentDeltaDict = {}
             if start:
                 chunk["role"] = "assistant"
                 start = False
-
-            content_parts = [part.text for part in response_parts if part.text]
-            content = "".join(content_parts)
-            if not content:
-                _LOGGER.warning("Received empty content from event: %s", event)
-                continue
             chunk["content"] = content
             yield chunk
     except (APIError, ValueError, HomeAssistantError) as err:

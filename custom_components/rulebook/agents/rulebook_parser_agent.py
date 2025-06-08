@@ -20,6 +20,7 @@ from typing import override, Any
 from google.adk.agents import LlmAgent, BaseAgent
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.events.event import Event
+from google.adk.events.event_actions import EventActions
 from google.adk.tools import FunctionTool, ToolContext
 from google.genai import types
 
@@ -137,9 +138,19 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
             _LOGGER.debug(
                 f"[{self.name}] Event from RulebookParser: {debug_info[:200]}..."
             )
-            # TODO: Don't return underlying data. However, this needs to be yielded
-            # because it updates session state. Find a fix.
-            yield event
+            if event.actions.state_delta:
+                _LOGGER.info("State delta detected, yielding event.")
+                yield Event(
+                    author=event.author,
+                    invocation_id=event.invocation_id,
+                    content=types.Content(
+                        parts=[types.Part(text=" OK, I have reviewed the rulebook.\n")]
+                    ),
+                    partial=event.partial,
+                    turn_complete=event.turn_complete,
+                    # Make sure to set the state delta so the context is updated
+                    actions=EventActions(state_delta=event.actions.state_delta),
+                )
 
         if (
             _PARSED_RULEBOOK_KEY not in ctx.session.state
@@ -148,7 +159,19 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
             _LOGGER.error(
                 f"[{self.name}] Failed to generate initial rulebook details. Aborting workflow."
             )
-            # TODO: Yield useful error messages
+            yield Event(
+                author=self.name,
+                invocation_id=ctx.invocation_id,
+                content=types.Content(
+                    parts=[
+                        types.Part(
+                            text="Sorry, I encountered an error while parsing your rulebook. Please try again."
+                        )
+                    ]
+                ),
+                partial=False,
+                turn_complete=True,
+            )
             return
 
         initial_rulebook_dict = ctx.session.state[_PARSED_RULEBOOK_KEY]
@@ -165,6 +188,16 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
 
             subagents = []
             for i, snippet in enumerate(home_details.raw_smart_home_rules_text):
+                yield Event(
+                    author=self.name,
+                    invocation_id=ctx.invocation_id,
+                    content=types.Content(
+                        parts=[types.Part(text=f'\nReviewing rule "{snippet[:50]}...".')]
+                    ),
+                    partial=True,
+                    turn_complete=False,
+                )
+
                 input_key = _RULE_TEXT_INPUT_KEY.format(rule_index=i)
                 output_key = _RULE_TEXT_OUTPUT_KEY.format(rule_index=i)
                 rule_parser_agent = async_create_smart_home_rule_parser_agent(
@@ -189,9 +222,17 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
                 _LOGGER.debug(
                     f"[{self.name}] Event from RulebookParser: {debug_info[:200]}..."
                 )
-                # TODO: Don't return underlying data. However, this needs to be yielded
-                # because it updates session state. Find a fix.
-                yield event
+                if event.actions.state_delta:
+                    _LOGGER.info("State delta detected, yielding event.")
+                    # No output content, just update the state
+                    yield Event(
+                        author=event.author,
+                        invocation_id=event.invocation_id,
+                        partial=event.partial,
+                        turn_complete=event.turn_complete,
+                        # Make sure to set the state delta so the context is updated
+                        actions=EventActions(state_delta=event.actions.state_delta),
+                    )
 
             # Process the results of the parallel parsing
             _LOGGER.info(
@@ -243,7 +284,7 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
             invocation_id=ctx.invocation_id,
             content=types.Content(
                 parts=[
-                    types.Part(text="Let me take a look at your previous rulebook. ")
+                    types.Part(text="\nNow I will have a look at your previous rulebook and see if there are any significant updates.\n")
                 ]
             ),
             partial=True,
@@ -258,6 +299,13 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
             yield event
 
         _LOGGER.info(f"[{self.name}] Workflow finished.")
+        yield Event(
+            author=self.name,
+            invocation_id=ctx.invocation_id,
+            actions=EventActions(
+                escalate=True,
+            ),
+        )
 
 
 class RulebookStorageTool:

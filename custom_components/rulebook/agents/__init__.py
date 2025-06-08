@@ -43,6 +43,6 @@ async def async_create(
     return LlmAgent(
         name="Coordinator",
         model=AGENT_MODEL,
-        description="I coordinate greetings and tasks, including rulebook parsing, area, person, and location management.",
+        description="I coordinate greetings and tasks, including rulebook parsing, area, person, and location management. After parsing the rulebook, review the output and determine if there were any significant changes that other sub-agents need to be made aware of. If so, inform the relevant sub-agents to take appropriate actions.",
         sub_agents=sub_agents_instances,
     )

@@ -7,7 +7,7 @@ from google.adk.agents import LlmAgent
 from custom_components.rulebook.data.home import ParsedSmartHomeRule
 from custom_components.rulebook.types import RulebookConfigEntry
 from homeassistant.core import HomeAssistant
-from .const import AGENT_MODEL
+from .const import SUMMARIZE_MODEL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ def async_create_agent(
     """
     return LlmAgent(
         name="SmartHomeRuleParserAgent",
-        model=AGENT_MODEL,
+        model=SUMMARIZE_MODEL,
         description="Parses a single smart home rule text snippet into a structured ParsedSmartHomeRule JSON format.",
         instruction=_RULE_PARSER_INSTRUCTION + "{" + input_key + "}\n\n",
         disallow_transfer_to_peers=True,
