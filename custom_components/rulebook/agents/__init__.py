@@ -15,12 +15,16 @@ from .rulebook_parser_agent import (
     async_create_agent as async_create_rulebook_parser_agent,
 )
 from .area_agent import async_create_agent as async_create_area_agent
+from .person_agent import (
+    async_create_agent as async_create_person_agent,
+)  # Added import
 
 _LOGGER = logging.getLogger(__name__)
 
 _AGENT_FACTORIES: list[Callable[[HomeAssistant, RulebookConfigEntry], LlmAgent]] = [
     async_create_rulebook_parser_agent,
     async_create_area_agent,
+    async_create_person_agent,  # Added person agent factory
 ]
 
 

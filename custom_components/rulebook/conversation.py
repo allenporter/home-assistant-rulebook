@@ -66,18 +66,8 @@ async def _transform_stream(
                 chunk["role"] = "assistant"
                 start = False
 
-            # Tool calls were handled by the agent, we don't propagate them. However
-            # for debugging for now we just print that we called the tool.
-            tool_calls = [
-                f"I called {part.function_call.name} with {part.function_call.args}\n"[
-                    :100
-                ]
-                + "..."
-                for part in response_parts
-                if part.function_call
-            ]
             content_parts = [part.text for part in response_parts if part.text]
-            content = "".join(content_parts + tool_calls)
+            content = "".join(content_parts)
             if not content:
                 _LOGGER.warning("Received empty content from event: %s", event)
                 continue
