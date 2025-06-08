@@ -24,6 +24,12 @@ class LocationDetails(BaseModel):
         default=None, description="Country where the home is located."
     )
     timezone: str | None = Field(default=None, description="Timezone of the home.")
+    latitude: float | None = Field(
+        default=None, description="Latitude of the home's location."
+    )
+    longitude: float | None = Field(
+        default=None, description="Longitude of the home's location."
+    )
 
 
 class BasicInfo(BaseModel):
@@ -86,6 +92,7 @@ class ParsedSmartHomeRule(BaseModel):
         None,
         description="The core part of the rule text that seems to describe its main trigger, condition, and action logic as a single text block. This will be parsed in more detail later.",
     )
+
 
 class ParsedHomeDetails(BaseModel):
     # Meta fields about the parsing process

@@ -1,7 +1,7 @@
 """Module for agents."""
 
 import logging
-from collections.abc import Callable  # Added import
+from collections.abc import Callable
 
 from google.adk.agents import LlmAgent
 
@@ -17,14 +17,18 @@ from .rulebook_parser_agent import (
 from .area_agent import async_create_agent as async_create_area_agent
 from .person_agent import (
     async_create_agent as async_create_person_agent,
-)  # Added import
+)
+from .location_agent import (
+    async_create_agent as async_create_location_agent,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 _AGENT_FACTORIES: list[Callable[[HomeAssistant, RulebookConfigEntry], LlmAgent]] = [
     async_create_rulebook_parser_agent,
     async_create_area_agent,
-    async_create_person_agent,  # Added person agent factory
+    async_create_person_agent,
+    async_create_location_agent,
 ]
 
 
@@ -33,13 +37,12 @@ async def async_create(
 ) -> LlmAgent:
     """Register all agents using the agent framework."""
     _LOGGER.debug("Registering Rulebook agents with ID %s", RULEBOOK_AGENT_ID)
-    # Ensure all agents are created by calling the functions in _AGENT_FACTORIES
-    # The LlmAgent constructor expects a list of agent instances.
+
     sub_agents_instances = [factory(hass, config_entry) for factory in _AGENT_FACTORIES]
 
     return LlmAgent(
         name="Coordinator",
         model=AGENT_MODEL,
-        description="I coordinate greetings and tasks, including rulebook parsing.",
+        description="I coordinate greetings and tasks, including rulebook parsing, area, person, and location management.",
         sub_agents=sub_agents_instances,
     )
