@@ -3,7 +3,7 @@
 import logging
 from collections.abc import Callable
 
-from google.adk.agents import LlmAgent
+from google.adk.agents import BaseAgent, LlmAgent
 
 from homeassistant.core import HomeAssistant
 
@@ -24,7 +24,7 @@ from .location_agent import (
 
 _LOGGER = logging.getLogger(__name__)
 
-_AGENT_FACTORIES: list[Callable[[HomeAssistant, RulebookConfigEntry], LlmAgent]] = [
+_AGENT_FACTORIES: list[Callable[[HomeAssistant, RulebookConfigEntry], BaseAgent]] = [
     async_create_rulebook_parser_agent,
     async_create_area_agent,
     async_create_person_agent,
@@ -34,7 +34,7 @@ _AGENT_FACTORIES: list[Callable[[HomeAssistant, RulebookConfigEntry], LlmAgent]]
 
 async def async_create(
     hass: HomeAssistant, config_entry: RulebookConfigEntry
-) -> LlmAgent:
+) -> BaseAgent:
     """Register all agents using the agent framework."""
     _LOGGER.debug("Registering Rulebook agents with ID %s", RULEBOOK_AGENT_ID)
 

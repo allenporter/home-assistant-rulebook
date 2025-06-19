@@ -104,7 +104,7 @@ class RulebookConversationEntity(
             model="Rulebook Agent",
             entry_type=dr.DeviceEntryType.SERVICE,
         )
-        self._session_service = InMemorySessionService()
+        self._session_service = InMemorySessionService()  # type: ignore[no-untyped-call]
 
     @property
     def supported_languages(self) -> list[str] | Literal["*"]:

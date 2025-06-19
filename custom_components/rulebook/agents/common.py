@@ -13,7 +13,7 @@ from google.adk.events.event import Event
 _LOGGER = logging.getLogger(__name__)
 
 
-class ParallelMaxInFlightAgent(ParallelAgent):  # type: ignore[misc]
+class ParallelMaxInFlightAgent(ParallelAgent):
     """An agent wrapper that limits the number of concurrent sub-agents."""
 
     max_in_flight: int
@@ -25,7 +25,7 @@ class ParallelMaxInFlightAgent(ParallelAgent):  # type: ignore[misc]
         self._semaphore = asyncio.Semaphore(self.max_in_flight)
 
     @override
-    async def _run_async_impl(  # type: ignore[misc]
+    async def _run_async_impl(
         self, ctx: InvocationContext
     ) -> AsyncGenerator[Event, None]:
         async with self._semaphore:
@@ -33,7 +33,7 @@ class ParallelMaxInFlightAgent(ParallelAgent):  # type: ignore[misc]
                 yield event
 
     @override
-    async def _run_live_impl(  # type: ignore[misc]
+    async def _run_live_impl(
         self, ctx: InvocationContext
     ) -> AsyncGenerator[Event, None]:
         raise NotImplementedError("This is not supported yet for MaxInFlightAgent.")

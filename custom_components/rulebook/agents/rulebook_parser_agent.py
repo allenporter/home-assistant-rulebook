@@ -102,7 +102,7 @@ _REVIEWER_INSTRUCTION = (
 )
 
 
-class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
+class RulebookPipelineAgent(BaseAgent):
     """Agent that orchestrates the rulebook parsing and review process."""
 
     hass: HomeAssistant
@@ -114,7 +114,7 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
     model_config = {"arbitrary_types_allowed": True}
 
     @override
-    async def _run_async_impl(  # type: ignore[misc]
+    async def _run_async_impl(
         self, ctx: InvocationContext
     ) -> AsyncGenerator[Event, None]:
         """Implements the custom orchestration logic for the rulebook workflow."""
@@ -192,7 +192,9 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
                     author=self.name,
                     invocation_id=ctx.invocation_id,
                     content=types.Content(
-                        parts=[types.Part(text=f'\nReviewing rule "{snippet[:50]}...".')]
+                        parts=[
+                            types.Part(text=f'\nReviewing rule "{snippet[:50]}...".')
+                        ]
                     ),
                     partial=True,
                     turn_complete=False,
@@ -284,7 +286,9 @@ class RulebookPipelineAgent(BaseAgent):  # type: ignore[misc]
             invocation_id=ctx.invocation_id,
             content=types.Content(
                 parts=[
-                    types.Part(text="\nNow I will have a look at your previous rulebook and see if there are any significant updates.\n")
+                    types.Part(
+                        text="\nNow I will have a look at your previous rulebook and see if there are any significant updates.\n"
+                    )
                 ]
             ),
             partial=True,
@@ -340,7 +344,7 @@ class RulebookStorageTool:
 
 def async_create_agent(
     hass: HomeAssistant, config_entry: RulebookConfigEntry
-) -> LlmAgent:
+) -> BaseAgent:
     """Create and return an instance of the RulebookParserAgent."""
     parser_agent = LlmAgent(
         name="RulebookParserAgent",
