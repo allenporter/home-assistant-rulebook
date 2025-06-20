@@ -1,6 +1,6 @@
 {
   "template": "http://github.com/allenporter/cookiecutter-home-assistant-custom-component",
-  "commit": "9adae2ecafdeae752d58ad699ecfab56cacc87f5",
+  "commit": "cd96b78ed18b46355f4b46235dd4938d5d836ac6",
   "checkout": null,
   "context": {
     "cookiecutter": {
@@ -12,7 +12,8 @@
       "name": "Home Assistant Rulebook",
       "description": "A Home Assistant custom component implementing an LLM powered home rulebook",
       "version": "0.0.1",
-      "_template": "http://github.com/allenporter/cookiecutter-home-assistant-custom-component"
+      "_template": "http://github.com/allenporter/cookiecutter-home-assistant-custom-component",
+      "_commit": "cd96b78ed18b46355f4b46235dd4938d5d836ac6"
     }
   },
   "directory": null
