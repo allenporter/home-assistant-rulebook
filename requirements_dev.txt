@@ -15,6 +15,7 @@ home-assistant-intents>=2024.4.3
 mutagen>=1.47.0
 ha-ffmpeg>=3.2.2
 pymicro-vad>=1.0.1
+pyspeex-noise>=1.0.2
 
 google-adk==1.5.0
 aiofiles==24.1.0
