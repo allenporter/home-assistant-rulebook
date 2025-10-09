@@ -18,7 +18,7 @@ pymicro-vad>=1.0.1
 pyspeex-noise>=1.0.2
 
 google-adk==1.16.0
-aiofiles==24.1.0
+aiofiles==25.1.0
 
 # Eval dependencies
 synthetic-home==4.6.3
