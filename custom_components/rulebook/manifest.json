@@ -3,7 +3,7 @@
   "name": "Rulebook",
   "codeowners": ["@allenporter"],
   "config_flow": true,
-  "dependencies": ["assist_pipeline", "conversation"],
+  "dependencies": ["conversation"],
   "documentation": "https://github.com/allenporter/home-assistant-rulebook",
   "integration_type": "service",
   "iot_class": "calculated",
