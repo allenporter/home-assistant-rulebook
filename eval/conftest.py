@@ -15,7 +15,7 @@ FIXTURES = "_fixtures.yaml"
 DATASET_PATH = pathlib.Path(__file__).parent
 MODEL_OUTPUT_PATH = DATASET_PATH.parent / "reports"
 
-DEFAULT_MODEL_ID = "gemini-2.5-flash"
+DEFAULT_MODEL_ID = "gemini-3.0-flash"
 
 pytest_plugins = [
     "home_assistant_datasets.plugins.pytest_synthetic_home",

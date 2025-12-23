@@ -24,12 +24,31 @@ for what you're trying to accomplish, then build code to meet the goal. Evals
 should be easy and run frequently. This project uses `home-assistant-datasets`
 library for plugins for making it easier to run common eval tasks.
 
+Create a directory for sym linking custom components:
+
+```shell
+ROOT_DIR="/workspaces"/
+mkdir ${ROOT_DIR}/custom_components
+```
+
+Install this component and the synthetic home custom component to prepare for the eval
+
+```
+cd ${ROOT_DIR}
+# Install the rulebook component
+ln -s ${ROOT_DIR}/home-assistant-rulebook/custom_components/rulebook ${ROOT_DIR}/custom_components/rulebook
+
+# Install the synthetic home custom component
+git clone https://github.com/allenporter/home-assistant-synthetic-home
+ln -s ${ROOT_DIR}/home-assistant-synthetic-home/custom_components/synthetic_home ${ROOT_DIR}/custom_components/synthetic_home
+
+export PYTHONPATH="${ROOT_DIR}"
+```
+
 You can run the eval with this command:
 
-```bash
-# Install custom components in `/workspaces/custom_components`
-$ export PYTHONPATH="/workspaces/"
-$ pytest eval
+```shell
+pytest eval
 ```
 
 We use a pytest based eval to leverage the great unit test infrastructure
