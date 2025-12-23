@@ -86,7 +86,10 @@ def mock_send_message_stream_fixture(mock_client: Mock) -> Generator[AsyncMock]:
 )
 @pytest.mark.parametrize("expected_lingering_tasks", [True])
 async def test_error_handling(
-    hass: HomeAssistant, config_entry: MockConfigEntry, error: Exception, mock_client: Mock,
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    error: Exception,
+    mock_client: Mock,
 ) -> None:
     """Test that client errors are caught."""
     mock_client.aio.models.generate_content_stream.side_effect = error
