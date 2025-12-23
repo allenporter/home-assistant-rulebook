@@ -7,7 +7,6 @@ from google.genai.errors import APIError, ClientError
 from google.genai import types
 import httpx
 import pytest
-import logging
 
 from homeassistant.const import Platform
 from homeassistant.components import conversation
@@ -16,8 +15,6 @@ from homeassistant.helpers import intent
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-
-_LOGGER = logging.getLogger(__name__)
 
 TEST_AGENT_ID = "conversation.mock_title"
 
@@ -53,8 +50,16 @@ def mock_platforms() -> list[Platform]:
     return [Platform.CONVERSATION]
 
 
+@pytest.fixture(name="mock_client")
+def mock_client_fixture() -> Mock:
+    with patch("google.genai.Client") as mock_client_class:
+        mock_client = mock_client_class.return_value
+        mock_client.vertexai.return_value = False
+        yield mock_client
+
+
 @pytest.fixture(name="mock_send_message_stream")
-def mock_send_message_stream_fixture() -> Generator[AsyncMock]:
+def mock_send_message_stream_fixture(mock_client: Mock) -> Generator[AsyncMock]:
     """Mock stream response."""
 
     async def mock_generator(
@@ -63,17 +68,13 @@ def mock_send_message_stream_fixture() -> Generator[AsyncMock]:
         for value in stream:
             yield value
 
-    with patch("google.adk.models.google_llm.Client") as mock_client:
-        mock_send_message_stream = AsyncMock()
-        mock_send_message_stream.side_effect = lambda **kwargs: mock_generator(
-            mock_send_message_stream.return_value.pop(0)
-        )
-        mock_client.return_value.aio.models.generate_content_stream = (
-            mock_send_message_stream
-        )
-        mock_client.return_value.vertexai.return_value = False
+    mock_send_message_stream = AsyncMock()
+    mock_send_message_stream.side_effect = lambda **kwargs: mock_generator(
+        mock_send_message_stream.return_value.pop(0)
+    )
+    mock_client.aio.models.generate_content_stream = mock_send_message_stream
 
-        yield mock_send_message_stream
+    yield mock_send_message_stream
 
 
 @pytest.mark.parametrize(
@@ -85,19 +86,18 @@ def mock_send_message_stream_fixture() -> Generator[AsyncMock]:
 )
 @pytest.mark.parametrize("expected_lingering_tasks", [True])
 async def test_error_handling(
-    hass: HomeAssistant, config_entry: MockConfigEntry, error: Exception
+    hass: HomeAssistant, config_entry: MockConfigEntry, error: Exception, mock_client: Mock,
 ) -> None:
     """Test that client errors are caught."""
-    with patch("google.adk.models.google_llm.Client") as mock_client:
-        mock_client.return_value.aio.models.generate_content_stream.side_effect = error
+    mock_client.aio.models.generate_content_stream.side_effect = error
 
-        result = await conversation.async_converse(
-            hass,
-            "hello",
-            None,
-            Context(),
-            agent_id=TEST_AGENT_ID,
-        )
+    result = await conversation.async_converse(
+        hass,
+        "hello",
+        None,
+        Context(),
+        agent_id=TEST_AGENT_ID,
+    )
     assert result.response.response_type == intent.IntentResponseType.ERROR, result
     assert result.response.error_code == "unknown", result
     assert (
