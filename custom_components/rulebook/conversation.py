@@ -131,11 +131,11 @@ class RulebookConversationEntity(
     ) -> conversation.ConversationResult:
         """Process the user input and call the API."""
         try:
-            await chat_log.async_update_llm_data(
-                DOMAIN,
-                user_input,
-                None,
-                "",
+            await chat_log.async_provide_llm_data(
+                user_input.as_llm_context(DOMAIN),
+                user_llm_hass_api=None,
+                user_llm_prompt=None,
+                user_extra_system_prompt=user_input.extra_system_prompt,
             )
         except conversation.ConverseError as err:
             return err.as_conversation_result()
