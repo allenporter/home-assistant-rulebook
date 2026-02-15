@@ -9,9 +9,6 @@
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/allenporter/home-assistant-rulebook/issues",
   "loggers": ["google.adk", "google.genai"],
-  "requirements": [
-    "google-adk>=1.0.0",
-    "aiofiles>=24.1.0"
-  ],
+  "requirements": ["google-adk>=1.0.0", "aiofiles>=24.1.0"],
   "version": "0.0.1"
 }

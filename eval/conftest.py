@@ -56,14 +56,14 @@ def get_state_fixture(
     hass: HomeAssistant,
     synthetic_home_config_entry: ConfigEntry,
     entity_registry: er.EntityRegistry,
-) -> Callable[[], dict[str, str]]:
+) -> Callable[[], dict[str, str | None]]:
     """Fixture that can state for all synthetic home entities."""
 
     entity_state = EntityStateFixture(
         hass, synthetic_home_config_entry, entity_registry
     )
 
-    def func() -> dict[str, str]:
+    def func() -> dict[str, str | None]:
         return {
             entity_id: state.state
             for entity_id, state in entity_state.get_state().items()

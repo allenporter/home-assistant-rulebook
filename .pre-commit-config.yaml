@@ -11,26 +11,27 @@ repos:
           # Allow constructors from home_assistant_datasets
           - --unsafe
       - id: check-added-large-files
-  - repo: https://github.com/psf/black
-    rev: 26.1.0
-    hooks:
-      - id: black
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.1
     hooks:
-      - id: ruff-format
       - id: ruff-check
+        types_or:
+          - python
+          - pyi
         args:
           - --fix
+          - --exit-non-zero-on-fix
+      - id: ruff-format
+        types_or:
+          - python
+          - pyi
   - repo: local
     hooks:
-      - id: mypy
-        name: mypy
-        entry: script/run-mypy.sh
-        language: script
-        types: [python]
-        require_serial: true
-        files: ^custom_components/
+      - id: ty
+        name: ty check
+        entry: uv run ty check . --ignore unresolved-import
+        language: python
+        pass_filenames: false
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.1
     hooks:

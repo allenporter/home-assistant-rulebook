@@ -1,4 +1,5 @@
 """Handles storage of the parsed rulebook."""
+
 import json
 import logging
 from typing import Any
@@ -29,7 +30,9 @@ async def async_write_parsed_rulebook(
     await aio_makedirs(entry_storage_path, exist_ok=True)
 
     file_path = hass.config.path(STORAGE_DIR, config_entry_id, PARSED_RULEBOOK_FILENAME)
-    _LOGGER.debug("Writing parsed rulebook for entry %s to %s", config_entry_id, file_path)
+    _LOGGER.debug(
+        "Writing parsed rulebook for entry %s to %s", config_entry_id, file_path
+    )
     try:
         async with aio_open(file_path, "w") as f:
             await f.write(parsed_rulebook.model_dump_json(indent=2))
@@ -40,17 +43,25 @@ async def async_write_parsed_rulebook(
         ) from err
 
 
-async def async_read_parsed_rulebook(hass: HomeAssistant, config_entry_id: str) -> ParsedHomeDetails | None:
+async def async_read_parsed_rulebook(
+    hass: HomeAssistant, config_entry_id: str
+) -> ParsedHomeDetails | None:
     """Read the parsed rulebook from a file specific to the config entry.
 
     Returns the parsed rulebook or None if the file does not exist or is invalid.
     """
     file_path = hass.config.path(STORAGE_DIR, config_entry_id, PARSED_RULEBOOK_FILENAME)
     if not await aio_path.exists(file_path):
-        _LOGGER.debug("Parsed rulebook file for entry %s not found at %s", config_entry_id, file_path)
+        _LOGGER.debug(
+            "Parsed rulebook file for entry %s not found at %s",
+            config_entry_id,
+            file_path,
+        )
         return None
 
-    _LOGGER.debug("Reading parsed rulebook for entry %s from %s", config_entry_id, file_path)
+    _LOGGER.debug(
+        "Reading parsed rulebook for entry %s from %s", config_entry_id, file_path
+    )
     try:
         async with aio_open(file_path, "r") as f:
             content = await f.read()

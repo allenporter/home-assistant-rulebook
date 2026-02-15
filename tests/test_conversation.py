@@ -51,7 +51,7 @@ def mock_platforms() -> list[Platform]:
 
 
 @pytest.fixture(name="mock_client")
-def mock_client_fixture() -> Mock:
+def mock_client_fixture() -> Mock:  # type: ignore[invalid-return-type]
     with patch("google.genai.Client") as mock_client_class:
         mock_client = mock_client_class.return_value
         mock_client.vertexai.return_value = False

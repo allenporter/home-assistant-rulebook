@@ -75,7 +75,8 @@ async def test_options_flow(
 
     # Check that the form is pre-filled with the current rulebook
     schema = result["data_schema"]
-    defaults = schema({})  # type: ignore[misc]
+    assert schema
+    defaults = schema({})
     assert defaults[CONF_RULEBOOK] == TEST_RULEBOOK
 
     # Simulate user input with an updated rulebook
