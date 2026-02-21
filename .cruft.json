@@ -12,7 +12,8 @@
       "name": "Home Assistant Rulebook",
       "description": "A Home Assistant custom component implementing an LLM powered home rulebook",
       "version": "0.0.1",
-      "_template": "http://github.com/allenporter/cookiecutter-home-assistant-custom-component"
+      "_template": "http://github.com/allenporter/cookiecutter-home-assistant-custom-component",
+      "_commit": "d218ff0960202880d72ca0a0226cd8886b394970"
     }
   },
   "directory": null
