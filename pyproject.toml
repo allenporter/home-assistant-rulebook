@@ -1,3 +1,9 @@
+[project]
+name = "home-assistant-rulebook"
+version = "0.0.1"
+requires-python = ">=3.14"
+dependencies = []
+
 [tool.mypy]
 exclude = [
   "venv/",
