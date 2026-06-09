@@ -16,5 +16,5 @@ google-adk==2.2.0
 aiofiles==25.1.0
 
 # Eval dependencies
-synthetic-home==5.0.2
+synthetic-home==5.0.3
 home-assistant-datasets==0.3.0
