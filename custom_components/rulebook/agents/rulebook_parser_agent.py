@@ -13,6 +13,7 @@ The goal of this is a workflow (series of agents/tools) that will do the followi
 
 """
 
+import asyncio
 import logging
 from collections.abc import AsyncGenerator
 from typing import override, Any
@@ -38,7 +39,6 @@ from .const import SUMMARIZE_MODEL, AGENT_MODEL
 from .smart_home_rule_parser_agent import (
     async_create_agent as async_create_smart_home_rule_parser_agent,
 )
-from .common import ParallelMaxInFlightAgent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -212,14 +212,30 @@ class RulebookPipelineAgent(BaseAgent):
 
                 ctx.session.state[input_key] = snippet
 
-            parallel_agent = ParallelMaxInFlightAgent(
-                name="ParallelSmartHomeRuleParserAgent",
-                sub_agents=subagents,
-                description="Runs multiple smart home rule parser agents in parallel.",
-                max_in_flight=_MAX_CONCURRENT_RULE_PARSERS,
-            )
+            semaphore = asyncio.Semaphore(_MAX_CONCURRENT_RULE_PARSERS)
+            event_queue = asyncio.Queue()
 
-            async for event in parallel_agent.run_async(ctx):
+            async def run_subagent(subagent) -> None:
+                async with semaphore:
+                    async for event in subagent.run_async(ctx):
+                        await event_queue.put(event)
+
+            # Start all subagents as background tasks
+            tasks = [asyncio.create_task(run_subagent(agent)) for agent in subagents]
+
+            # Enqueue a sentinel (None) when all tasks finish
+            async def wait_for_all() -> None:
+                await asyncio.gather(*tasks)
+                await event_queue.put(None)
+
+            asyncio.create_task(wait_for_all())
+
+            # Yield events from the queue to the caller
+            while True:
+                event = await event_queue.get()
+                if event is None:
+                    break
+
                 debug_info = event.model_dump_json(indent=2, exclude_none=True)
                 _LOGGER.debug(
                     f"[{self.name}] Event from RulebookParser: {debug_info[:200]}..."
