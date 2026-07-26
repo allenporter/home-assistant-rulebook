@@ -35,6 +35,15 @@
       assignees: [],
     },
   ],
+  customManagers: [
+    {
+      customType: "regex",
+      fileMatch: ["^\\.github/workflows/lint\\.yaml$"],
+      matchStrings: ["npx --package=renovate@(?<currentValue>[^\\s]+)"],
+      depNameTemplate: "renovate",
+      datasourceTemplate: "npm",
+    },
+  ],
   pip_requirements: {
     managerFilePatterns: [
       '/^requirements_dev\\.txt$/',
