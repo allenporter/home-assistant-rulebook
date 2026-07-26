@@ -2,26 +2,26 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 from typing import Any
-import logging
 
+import voluptuous as vol
 from google import genai
 from google.genai.errors import APIError, ClientError
-import voluptuous as vol
-
 from homeassistant.helpers import (
-    selector,
     config_validation as cv,
 )
-
+from homeassistant.helpers import (
+    selector,
+)
 from homeassistant.helpers.schema_config_entry_flow import (
-    SchemaConfigFlowHandler,
     SchemaCommonFlowHandler,  # Ensure SchemaCommonFlowHandler is imported
+    SchemaConfigFlowHandler,
     SchemaFlowFormStep,
 )
 
-from .const import DOMAIN, CONF_RULEBOOK, CONF_API_KEY, TIMEOUT_MILLIS
+from .const import CONF_API_KEY, CONF_RULEBOOK, DOMAIN, TIMEOUT_MILLIS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ async def validate_user_input(
         _LOGGER.error("Failed to connect to GenAI API: %s", err)
         return {"base": "cannot_connect"}
     except Exception as err:  # pylint: disable=broad-except
-        _LOGGER.exception("Unexpected error during validation: %s", err)
+        _LOGGER.exception("Unexpected error during validation: %s", err)  # noqa: TRY401
         return {"base": "unknown_error"}
 
 

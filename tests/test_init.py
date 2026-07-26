@@ -1,13 +1,12 @@
 """Tests for the rulebook component."""
 
 import pytest
-
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.config_entries import ConfigEntryState
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from .conftest import FakeAgent, TEST_AGENT
+from .conftest import TEST_AGENT, FakeAgent
 
 
 @pytest.mark.parametrize(

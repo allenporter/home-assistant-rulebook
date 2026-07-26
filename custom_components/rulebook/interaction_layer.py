@@ -206,8 +206,8 @@ async def async_set_ha_location_config(
     except HomeAssistantError as e:
         _LOGGER.error("Failed to update Home Assistant location configuration: %s", e)
         return {"status": "error", "message": str(e)}
-    except Exception as e:  # Catching generic Exception for unexpected errors
+    except Exception as e:  # noqa: BLE001 - Catching generic Exception for unexpected errors
         _LOGGER.error(
             "Unexpected error updating Home Assistant location configuration: %s", e
         )
-        return {"status": "error", "message": f"Unexpected error: {str(e)}"}
+        return {"status": "error", "message": f"Unexpected error: {e!s}"}

@@ -3,17 +3,16 @@
 from unittest.mock import patch
 
 import pytest
-
 from homeassistant import config_entries
-from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.rulebook import DOMAIN
-from custom_components.rulebook.const import CONF_RULEBOOK, CONF_API_KEY
+from custom_components.rulebook.const import CONF_API_KEY, CONF_RULEBOOK
 
 from .conftest import (
-    TEST_RULEBOOK,
     TEST_API_KEY,
+    TEST_RULEBOOK,
 )
 
 

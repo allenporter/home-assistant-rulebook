@@ -5,17 +5,16 @@ from __future__ import annotations
 import logging
 
 from google import genai
-
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
 from . import agents
-from .const import DOMAIN, CONF_API_KEY
+from .const import CONF_API_KEY, DOMAIN
 from .storage import async_read_parsed_rulebook
 from .types import RulebookConfigEntry, RulebookContext
 
 __all__ = [
-    DOMAIN,
+    "DOMAIN",
 ]
 
 _LOGGER = logging.getLogger(__name__)

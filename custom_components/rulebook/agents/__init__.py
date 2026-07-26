@@ -4,22 +4,21 @@ import logging
 from collections.abc import Callable
 
 from google.adk.agents import BaseAgent, LlmAgent
-
 from homeassistant.core import HomeAssistant
 
 from custom_components.rulebook.const import RULEBOOK_AGENT_ID
 from custom_components.rulebook.types import RulebookConfigEntry
 
-from .const import AGENT_MODEL
-from .rulebook_parser_agent import (
-    async_create_agent as async_create_rulebook_parser_agent,
-)
 from .area_agent import async_create_agent as async_create_area_agent
+from .const import AGENT_MODEL
+from .location_agent import (
+    async_create_agent as async_create_location_agent,
+)
 from .person_agent import (
     async_create_agent as async_create_person_agent,
 )
-from .location_agent import (
-    async_create_agent as async_create_location_agent,
+from .rulebook_parser_agent import (
+    async_create_agent as async_create_rulebook_parser_agent,
 )
 
 _LOGGER = logging.getLogger(__name__)

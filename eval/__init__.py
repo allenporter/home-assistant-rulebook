@@ -1,7 +1,7 @@
 """Evaluation module."""
 
-import sys
 import pathlib
+import sys
 
 
 def adjust_custom_component_python_path() -> None:

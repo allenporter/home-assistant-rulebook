@@ -3,10 +3,11 @@
 import logging
 
 from google.adk.agents import LlmAgent
+from homeassistant.core import HomeAssistant
 
 from custom_components.rulebook.data.home import ParsedSmartHomeRule
 from custom_components.rulebook.types import RulebookConfigEntry
-from homeassistant.core import HomeAssistant
+
 from .const import SUMMARIZE_MODEL
 
 _LOGGER = logging.getLogger(__name__)

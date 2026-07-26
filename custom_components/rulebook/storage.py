@@ -5,14 +5,12 @@ import logging
 from typing import Any
 
 from aiofiles import open as aio_open
-from aiofiles.os import path as aio_path
 from aiofiles.os import makedirs as aio_makedirs
-
-
+from aiofiles.os import path as aio_path
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import STORAGE_DIR, PARSED_RULEBOOK_FILENAME
+from .const import PARSED_RULEBOOK_FILENAME, STORAGE_DIR
 from .data.home import ParsedHomeDetails
 
 _LOGGER = logging.getLogger(__name__)

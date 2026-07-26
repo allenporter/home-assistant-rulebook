@@ -1,36 +1,35 @@
 """Fixtures for the custom component."""
 
-from collections.abc import Generator, AsyncGenerator
 import logging
-from unittest.mock import patch
-from typing import Literal
 import uuid
+from collections.abc import AsyncGenerator, Generator
 from functools import partial
+from typing import Literal
+from unittest.mock import patch
 
 import pytest
-
-from homeassistant.const import Platform, MATCH_ALL
 from homeassistant.components import conversation
-from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState, ConfigFlow
+from homeassistant.const import MATCH_ALL, Platform
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import intent
 from homeassistant.helpers.entity import Entity
-from homeassistant.setup import async_setup_component
-from homeassistant.helpers import device_registry as dr, intent
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-
+from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     MockModule,
     MockPlatform,
+    mock_config_flow,
     mock_integration,
     mock_platform,
-    mock_config_flow,
 )
 
 from custom_components.rulebook.const import (
-    DOMAIN,
     CONF_API_KEY,
     CONF_RULEBOOK,
+    DOMAIN,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,7 +51,7 @@ TEST_API_KEY = "test-api-key-1"
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(
     enable_custom_integrations: None,
-) -> Generator[None, None, None]:
+) -> Generator[None]:
     """Enable custom integration."""
     _ = enable_custom_integrations  # unused
     yield

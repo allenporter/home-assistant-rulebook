@@ -16,26 +16,25 @@ The goal of this is a workflow (series of agents/tools) that will do the followi
 import asyncio
 import logging
 from collections.abc import AsyncGenerator
-from typing import override, Any
+from typing import Any, override
 
-from google.adk.agents import LlmAgent, BaseAgent
+from google.adk.agents import BaseAgent, LlmAgent
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.events.event import Event
 from google.adk.events.event_actions import EventActions
 from google.adk.tools import FunctionTool, ToolContext
 from google.genai import types
-
 from homeassistant.core import HomeAssistant
 
 from custom_components.rulebook.const import CONF_RULEBOOK
-from custom_components.rulebook.types import RulebookConfigEntry
-from custom_components.rulebook.storage import (
-    async_write_parsed_rulebook,
-    async_read_parsed_rulebook,
-)
 from custom_components.rulebook.data.home import ParsedHomeDetails, ParsedSmartHomeRule
+from custom_components.rulebook.storage import (
+    async_read_parsed_rulebook,
+    async_write_parsed_rulebook,
+)
+from custom_components.rulebook.types import RulebookConfigEntry
 
-from .const import SUMMARIZE_MODEL, AGENT_MODEL
+from .const import AGENT_MODEL, SUMMARIZE_MODEL
 from .smart_home_rule_parser_agent import (
     async_create_agent as async_create_smart_home_rule_parser_agent,
 )
@@ -111,12 +110,10 @@ class RulebookPipelineAgent(BaseAgent):
     reviewer_agent: LlmAgent
 
     # model_config allows setting Pydantic configurations if needed, e.g., arbitrary_types_allowed
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = {"arbitrary_types_allowed": True}  # noqa: RUF012  # noqa: RUF012
 
     @override
-    async def _run_async_impl(
-        self, ctx: InvocationContext
-    ) -> AsyncGenerator[Event, None]:
+    async def _run_async_impl(self, ctx: InvocationContext) -> AsyncGenerator[Event]:
         """Implements the custom orchestration logic for the rulebook workflow."""
         _LOGGER.info(f"[{self.name}] Starting rulebook parsing workflow.")
 

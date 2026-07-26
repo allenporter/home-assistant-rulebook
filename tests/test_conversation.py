@@ -1,20 +1,17 @@
 """Tests for the conversation integration."""
 
-from collections.abc import Generator, AsyncGenerator
-from unittest.mock import AsyncMock, patch, Mock
+from collections.abc import AsyncGenerator, Generator
+from unittest.mock import AsyncMock, Mock, patch
 
-from google.genai.errors import APIError, ClientError
-from google.genai import types
 import httpx
 import pytest
-
-from homeassistant.const import Platform
+from google.genai import types
+from google.genai.errors import APIError, ClientError
 from homeassistant.components import conversation
+from homeassistant.const import Platform
 from homeassistant.core import Context, HomeAssistant
 from homeassistant.helpers import intent
-
 from pytest_homeassistant_custom_component.common import MockConfigEntry
-
 
 TEST_AGENT_ID = "conversation.mock_title"
 
@@ -63,8 +60,8 @@ def mock_send_message_stream_fixture(mock_client: Mock) -> Generator[AsyncMock]:
     """Mock stream response."""
 
     async def mock_generator(
-        stream: Generator[types.GenerateContentResponse, None],
-    ) -> AsyncGenerator[types.GenerateContentResponse, None]:
+        stream: Generator[types.GenerateContentResponse],
+    ) -> AsyncGenerator[types.GenerateContentResponse]:
         for value in stream:
             yield value
 

@@ -1,15 +1,14 @@
 """Evaluation tests fixtures."""
 
-from collections.abc import Callable
 import pathlib
+from collections.abc import Callable
 from importlib.metadata import version
 
 import pytest
-from homeassistant.core import HomeAssistant
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers import entity_registry as er
-
 from home_assistant_datasets.entity_state import EntityStateFixture
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 
 FIXTURES = "_fixtures.yaml"
 DATASET_PATH = pathlib.Path(__file__).parent
