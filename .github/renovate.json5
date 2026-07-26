@@ -1,46 +1,28 @@
 {
-  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
-  extends: [
-    'config:recommended',
-    'helpers:pinGitHubActionDigests',
-  ],
-  assignees: [
-    'allenporter',
-  ],
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: ["config:recommended", "helpers:pinGitHubActionDigests"],
+  assignees: ["allenporter"],
   packageRules: [
     {
-      description: 'Silent automerge for minor, patch, pin, and digest updates',
+      description: "Silent automerge for minor, patch, pin, and digest updates",
       automerge: true,
-      automergeType: 'branch',
+      automergeType: "branch",
       assignees: [],
-      matchUpdateTypes: [
-        'minor',
-        'patch',
-        'pin',
-        'digest',
-      ],
+      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
     },
     {
-      description: 'Silent automerge major updates for dev-time tools (Actions, pre-commit, requirements_dev.txt)',
-      matchUpdateTypes: [
-        'major',
-      ],
-      matchManagers: [
-        'github-actions',
-        'pre-commit',
-        'pip_requirements',
-      ],
+      description: "Silent automerge major updates for dev-time tools (Actions, pre-commit, requirements_dev.txt)",
+      matchUpdateTypes: ["major"],
+      matchManagers: ["github-actions", "pre-commit", "pip_requirements"],
       automerge: true,
-      automergeType: 'branch',
+      automergeType: "branch",
       assignees: [],
     },
   ],
   pip_requirements: {
-    managerFilePatterns: [
-      '/^requirements_dev\\.txt$/',
-    ],
+    fileMatch: ["^requirements_dev\\.txt$"],
   },
-  'pre-commit': {
+  "pre-commit": {
     enabled: true,
   },
 }
