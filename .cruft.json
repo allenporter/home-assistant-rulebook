@@ -1,7 +1,7 @@
 {
   "template": "http://github.com/allenporter/cookiecutter-home-assistant-custom-component",
   "commit": "33a4ae597bbe3c20942be62b6044825cebb99f08",
-  "checkout": "fix-ruff-action-ci",
+  "checkout": null,
   "context": {
     "cookiecutter": {
       "full_name": "Allen Porter",
