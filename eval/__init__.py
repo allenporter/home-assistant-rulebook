@@ -23,7 +23,7 @@ def adjust_custom_component_python_path() -> None:
         pass
 
     try:
-        import custom_components  # noqa: F401
+        import custom_components  # noqa: F401, PLC0415
     except ImportError:
         raise ImportError(
             "Could not import `custom_components`, check PYTHONPATH is explicitly set"
