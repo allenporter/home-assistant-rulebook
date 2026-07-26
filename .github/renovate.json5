@@ -21,15 +21,11 @@
   ],
   customManagers: [
     {
-      customType: 'regex',
-      managerFilePatterns: [
-        '/^\\.github/workflows/lint\\.yaml$/',
-      ],
-      matchStrings: [
-        'npx --package=renovate@(?<currentValue>[^\\s]+)',
-      ],
-      depNameTemplate: 'renovate',
-      datasourceTemplate: 'npm',
+      customType: "regex",
+      managerFilePatterns: ["/^\\.github/workflows/lint\\.yaml$/"],
+      matchStrings: ["npx --package=renovate@(?<currentValue>[^\\s]+)"],
+      depNameTemplate: "renovate",
+      datasourceTemplate: "npm",
     },
   ],
   pip_requirements: {
