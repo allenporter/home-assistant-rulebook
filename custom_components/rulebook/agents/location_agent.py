@@ -1,7 +1,10 @@
 """Agent for managing Home Assistant location configuration based on the rulebook."""
 
 import logging
-from typing import Any, Optional
+from typing import Any
+
+from google.adk.agents import LlmAgent
+from homeassistant.core import HomeAssistant
 
 from custom_components.rulebook.data.home import ParsedHomeDetails
 from custom_components.rulebook.interaction_layer import (
@@ -10,8 +13,6 @@ from custom_components.rulebook.interaction_layer import (
 )
 from custom_components.rulebook.storage import async_read_parsed_rulebook
 from custom_components.rulebook.types import RulebookConfigEntry
-from google.adk.agents import LlmAgent
-from homeassistant.core import HomeAssistant
 
 from .const import SUMMARIZE_MODEL
 
@@ -77,15 +78,15 @@ def async_create_agent(
         return None
 
     async def set_ha_location_config_tool(
-        latitude: Optional[float] = None,
-        longitude: Optional[float] = None,
-        elevation: Optional[int] = None,
-        location_name: Optional[str] = None,
-        time_zone: Optional[str] = None,
-        unit_system_metric: Optional[bool] = None,
-        currency: Optional[str] = None,
-        country: Optional[str] = None,
-        language: Optional[str] = None,
+        latitude: float | None = None,
+        longitude: float | None = None,
+        elevation: int | None = None,
+        location_name: str | None = None,
+        time_zone: str | None = None,
+        unit_system_metric: bool | None = None,
+        currency: str | None = None,
+        country: str | None = None,
+        language: str | None = None,
     ) -> dict[str, str]:
         """Updates Home Assistant's core location configuration with the provided parameters. All parameters are optional; only provided ones will be updated."""
         _LOGGER.debug(

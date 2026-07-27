@@ -1,24 +1,21 @@
 """Test for the outdoor light rule."""
 
 import asyncio
-from collections.abc import Callable, AsyncGenerator
 import datetime
 import zoneinfo
-
-from freezegun import freeze_time
+from collections.abc import AsyncGenerator, Callable
 
 import pytest
-
+from freezegun import freeze_time
+from homeassistant.components import sun
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.setup import async_setup_component
 from homeassistant.helpers.event import (
-    async_track_state_change_event,
     Event,
     EventStateChangedData,
+    async_track_state_change_event,
 )
-from homeassistant.components import sun
+from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
-
 
 LIGHT_ENTITY = "light.porch_light"
 LIGHT_TIMEOUT = datetime.timedelta(minutes=5)  # Example timeout

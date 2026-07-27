@@ -3,17 +3,15 @@
 import logging
 
 from google.adk.agents import LlmAgent
-
 from homeassistant.core import HomeAssistant
 
+from custom_components.rulebook.data.home import ParsedHomeDetails
 from custom_components.rulebook.interaction_layer import (
-    async_get_areas,
     async_create_area,
+    async_get_areas,
 )
 from custom_components.rulebook.storage import async_read_parsed_rulebook
 from custom_components.rulebook.types import RulebookConfigEntry
-from custom_components.rulebook.data.home import ParsedHomeDetails
-
 
 from .const import AGENT_MODEL
 

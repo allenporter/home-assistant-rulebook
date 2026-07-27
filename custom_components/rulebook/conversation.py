@@ -1,28 +1,26 @@
 """Conversation agent for the Rulebook agent."""
 
+import logging
 from collections.abc import AsyncGenerator
 from typing import Literal
-import logging
 
-from google.adk.agents.run_config import StreamingMode, RunConfig
+from google.adk.agents.run_config import RunConfig, StreamingMode
 from google.adk.events.event import Event
-from google.adk.sessions import InMemorySessionService
 from google.adk.runners import Runner
-from google.genai.errors import APIError
-
+from google.adk.sessions import InMemorySessionService
 from google.genai import types
-
+from google.genai.errors import APIError
 from homeassistant.components import conversation
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.const import MATCH_ALL
-from homeassistant.core import HomeAssistant, Context
-from homeassistant.helpers import device_registry as dr, intent
+from homeassistant.core import Context, HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import intent
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, RULEBOOK
 from .types import RulebookConfigEntry
-
 
 _LOGGER = logging.getLogger(__name__)
 _ERROR_GETTING_RESPONSE = "Sorry, I had a problem getting a response from the Agent."
@@ -40,7 +38,7 @@ async def async_setup_entry(
 
 async def _transform_stream(
     chat_log: conversation.ChatLog,
-    result: AsyncGenerator[Event, None],
+    result: AsyncGenerator[Event],
 ) -> AsyncGenerator[conversation.AssistantContentDeltaDict]:
     """Transform an OpenAI delta stream into HA format."""
     start = True
@@ -74,7 +72,7 @@ async def _transform_stream(
             chunk["content"] = content
             yield chunk
     except (APIError, ValueError, HomeAssistantError) as err:
-        _LOGGER.exception("Error sending message: %s %s", type(err), err)
+        _LOGGER.exception("Error sending message: %s %s", type(err), err)  # noqa: TRY401  # noqa: TRY401
         if isinstance(err, APIError):
             message = err.message
         else:
@@ -166,13 +164,13 @@ class RulebookConversationEntity(
     ) -> None:
         """Generate an answer for the chat log."""
         user_id = context.user_id or "unknown_user"
-        session = await self._session_service.get_session(  # noqa: F841
+        session = await self._session_service.get_session(
             app_name=RULEBOOK,
             user_id=user_id,
             session_id=chat_log.conversation_id,
         )
         if not session:
-            session = await self._session_service.create_session(  # noqa: F841
+            session = await self._session_service.create_session(
                 app_name=RULEBOOK,
                 user_id=user_id,
                 session_id=chat_log.conversation_id,
@@ -199,7 +197,7 @@ class RulebookConversationEntity(
 
         last_content = chat_log.content[-1]
         if not isinstance(last_content, conversation.UserContent):
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004
                 "Last content in chat log must be UserContent, "
                 f"got {type(last_content).__name__}"
             )
