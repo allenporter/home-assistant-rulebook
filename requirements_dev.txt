@@ -5,8 +5,9 @@ ruff==0.16.6
 ty==0.0.78
 
 # Home Assistant testing dependencies
-pytest-homeassistant-custom-component==0.13.357
+pytest-homeassistant-custom-component==0.13.364
 syrupy>=4.6.1
+gazetteer-matcher
 
 # Component dependencies
 hassil>=2.0.4
