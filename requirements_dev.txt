@@ -13,7 +13,7 @@ gazetteer-matcher
 hassil>=2.0.4
 home-assistant-intents>=2024.4.3
 
-google-adk==2.8.0
+google-adk==2.9.0
 aiofiles==25.1.0
 
 # Eval dependencies
