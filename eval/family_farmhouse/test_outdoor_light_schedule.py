@@ -1,7 +1,7 @@
 """Test for the outdoor light rule."""
 
 import asyncio
-import datetime
+import datetime as dt
 import zoneinfo
 from collections.abc import AsyncGenerator, Callable
 
@@ -18,7 +18,7 @@ from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 LIGHT_ENTITY = "light.porch_light"
-LIGHT_TIMEOUT = datetime.timedelta(minutes=5)  # Example timeout
+LIGHT_TIMEOUT = dt.timedelta(minutes=5)  # Example timeout
 WAIT_TIMEOUT_SEC = 2.0
 
 
@@ -57,10 +57,8 @@ async def test_light_on_at_sunset(
     states = get_state()
     assert states.get(LIGHT_ENTITY) == "off"
 
-    now = datetime.datetime(
-        2025, 5, 22, 20, 30, tzinfo=zoneinfo.ZoneInfo("America/Chicago")
-    )
-    trigger_time = datetime.datetime(
+    now = dt.datetime(2025, 5, 22, 20, 30, tzinfo=zoneinfo.ZoneInfo("America/Chicago"))
+    trigger_time = dt.datetime(
         2025, 5, 22, 20, 35, tzinfo=zoneinfo.ZoneInfo("America/Chicago")
     )
     with freeze_time(now):
