@@ -6,7 +6,7 @@ import logging
 from collections.abc import Mapping
 from typing import Any
 
-import voluptuous as vol
+import probatio as vol
 from google import genai
 from google.genai.errors import APIError, ClientError
 from homeassistant.helpers import (
@@ -66,7 +66,9 @@ CONFIG_FLOW = {
 }
 
 
-async def _options_schema_factory(handler: SchemaCommonFlowHandler) -> vol.Schema:
+async def _options_schema_factory(
+    handler: SchemaCommonFlowHandler,
+) -> vol.Schema | None:
     """Return schema for an options flow."""
     return vol.Schema(
         {
